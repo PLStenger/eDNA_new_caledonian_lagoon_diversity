@@ -10,7 +10,7 @@ METADATA=/home/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/samp
 # negative control sample :
 #NEG_CONTROL=/home/fungi/eDNA_new_caledonian_lagoon_diversity/99_contamination
 
-TMPDIR=/home/fungi/eDNA_new_caledonian_lagoon_diversity/00_scripts
+TMPDIR=/home
 
 # https://chmi-sops.github.io/mydoc_qiime2.html
 
@@ -23,13 +23,11 @@ TMPDIR=/home/fungi/eDNA_new_caledonian_lagoon_diversity/00_scripts
 
 cd $WORKING_DIRECTORY
 
-source /Users/stengerpierre-louis/miniconda/bin/activate
-
 eval "$(conda shell.bash hook)"
 conda activate qiime2-2021.4
 
 # I'm doing this step in order to deal the no space left in cluster :
-export $TMPDIR
+export TMPDIR='/home/fungi'
 echo $TMPDIR
 
 # dada2_denoise :
