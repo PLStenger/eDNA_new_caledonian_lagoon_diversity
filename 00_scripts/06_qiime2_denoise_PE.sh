@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
-WORKING_DIRECTORY=/home/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
-OUTPUT=/home/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/visual
+WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
+OUTPUT=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/visual
 
 # Make the directory (mkdir) only if not existe already(-p)
 mkdir -p $OUTPUT
 
-METADATA=/home/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/sample-metadata.tsv
+METADATA=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/sample-metadata.tsv
 # negative control sample :
-#NEG_CONTROL=/home/fungi/eDNA_new_caledonian_lagoon_diversity/99_contamination
+#NEG_CONTROL=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/99_contamination
 
-TMPDIR=/home
+TMPDIR=/scratch_vol0
 
 # https://chmi-sops.github.io/mydoc_qiime2.html
 
@@ -27,7 +27,7 @@ eval "$(conda shell.bash hook)"
 conda activate qiime2-2021.4
 
 # I'm doing this step in order to deal the no space left in cluster :
-export TMPDIR='/home/fungi'
+export TMPDIR='/scratch_vol0/fungi'
 echo $TMPDIR
 
 # dada2_denoise :
@@ -157,19 +157,11 @@ qiime feature-table tabulate-seqs --i-data core/HitNegCtrl.qza --o-visualization
 mkdir -p export/core
 mkdir -p export/visual
 
-qiime tools export --input-path core/Table.qza --output-path export/core/Table
-qiime tools export --input-path core/ConTable.qza --output-path export/core/ConTable
-qiime tools export --input-path core/Table_neg.qza --output-path export/core/Table_neg
-qiime tools export --input-path core/RepSeq_neg.qza --output-path export/core/RepSeq_neg
-qiime tools export --input-path core/RepSeq.qza --output-path export/core/RepSeq
-qiime tools export --input-path core/HitNegCtrl.qza --output-path export/core/HitNegCtrl
-qiime tools export --input-path core/ConRepSeq.qza --output-path export/core/ConRepSeq
-qiime tools export --input-path core/Stats.qza  --output-path export/core/Stats
-qiime tools export --input-path core/Stats_neg.qza  --output-path export/core/Stats_neg
+for FILE in Table ConTable Table_neg RepSeq RepSeq_neg HitNegCtrl ConRepSeq Stats Stats_neg; do
+    qiime tools export --input-path core/${FILE}.qza --output-path export/core/${FILE}
+done
 
-qiime tools export --input-path visual/Table_neg.qzv --output-path export/visual/Table_neg
-qiime tools export --input-path visual/ConTable.qzv --output-path export/visual/ConTable
-qiime tools export --input-path visual/Table.qzv --output-path export/visual/Table
-qiime tools export --input-path visual/HitNegCtrl.qzv --output-path export/visual/HitNegCtrl
-qiime tools export --input-path visual/RepSeq.qzv --output-path export/visual/RepSeq
-qiime tools export --input-path visual/RepSeq_neg.qzv --output-path export/visual/RepSeq_neg
+for FILE in Table ConTable Table_neg RepSeq RepSeq_neg HitNegCtrl ConRepSeq Stats Stats_neg; do
+    qiime tools export --input-path visual/${FILE}.qzv --output-path export/visual/${FILE}
+done
+
