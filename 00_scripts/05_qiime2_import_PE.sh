@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/03_cleaned_data/raw_sequences_comp
+WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/03_cleaned_data
 OUTPUT=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
 
 # Make the directory (mkdir) only if not existe already(-p)
