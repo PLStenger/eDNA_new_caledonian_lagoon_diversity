@@ -45,7 +45,6 @@ qiime dada2 denoise-single \
   --o-denoising-stats core/Stats.qza \
   --p-trim-left 0 \
   --p-trunc-len 0 \
-  --p-n-threads 8 \
   --verbose
 
 ##################################################################
@@ -58,8 +57,7 @@ qiime dada2 denoise-single \
   --o-representative-sequences core/RepSeq_neg.qza \
   --o-denoising-stats core/Stats_neg.qza \
   --p-trim-left 0 \
-  --p-trunc-len 0 \
-  --p-n-threads 8
+  --p-trunc-len 0 
 
 
 # sequence_contamination_filter :
