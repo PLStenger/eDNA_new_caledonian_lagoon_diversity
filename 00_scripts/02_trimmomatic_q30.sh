@@ -3,7 +3,7 @@
 # trimmomatic version 0.39
 # trimmomatic manual : http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/TrimmomaticManual_V0.32.pdf
 
-WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/01_raw_data/Original_reads
+WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/01_raw_data
 OUTPUT=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/03_cleaned_data
 
 # Make the directory (mkdir) only if not existe already(-p)
