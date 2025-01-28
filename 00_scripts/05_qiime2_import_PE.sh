@@ -31,11 +31,11 @@ mkdir -p $OUTPUT/visual
 export TMPDIR='/scratch_vol0/fungi'
 echo $TMPDIR
 
-qiime tools import \
-    --type 'SampleData[SequencesWithQuality]' \
-    --input-path $MANIFEST \
-    --output-path $OUTPUT/core/demux.qza \
-    --input-format SingleEndFastqManifestPhred33V2
+#qiime tools import \
+#    --type 'SampleData[SequencesWithQuality]' \
+#    --input-path $MANIFEST \
+#    --output-path $OUTPUT/core/demux.qza \
+#    --input-format SingleEndFastqManifestPhred33V2
 
 qiime tools import \
     --type 'SampleData[SequencesWithQuality]' \
