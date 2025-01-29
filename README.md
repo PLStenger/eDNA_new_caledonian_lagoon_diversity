@@ -96,6 +96,8 @@ For install QIIME2, please refer to http://qiime.org/install/install.html
         sys	    0m11.154s
     
     # Run the Denoise
+    time nohup bash 06_deblur_denoise_SE.sh &> 06_deblur_denoise_SE.out
+    or
     time nohup bash 06_qiime2_denoise_PE.sh &> 06_qiime2_denoise_PE.out
         real	66m29.579s
         user	129m35.661s
