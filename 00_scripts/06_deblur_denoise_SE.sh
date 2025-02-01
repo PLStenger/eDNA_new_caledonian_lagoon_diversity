@@ -22,11 +22,16 @@ echo $TMPDIR
 # Deblur denoise step
 ####################
 
+qiime quality-filter q-score \
+  --i-demux core/demux.qza \
+  --o-filtered-sequences core/demux_filtered.qza \
+  --o-filter-stats core/demux_filter_stats.qza
+
 qiime deblur denoise-16S \
-  --i-demultiplexed-seqs core/demux.qza \
+  --i-demultiplexed-seqs core/demux_filtered.qza \
   --o-table core/Table.qza \
   --o-representative-sequences core/RepSeq.qza \
-  --p-trim-length 240 \
+  --p-trim-length 150 \
   --p-sample-stats \
   --o-stats core/Stats.qza \
   --verbose
@@ -35,7 +40,7 @@ qiime deblur denoise-16S \
   --i-demultiplexed-seqs core/demux_neg.qza \
   --o-table core/Table_neg.qza \
   --o-representative-sequences core/RepSeq_neg.qza \
-  --p-trim-length 240 \
+  --p-trim-length 150 \
   --p-sample-stats \
   --o-stats core/Stats_neg.qza \
   --verbose
