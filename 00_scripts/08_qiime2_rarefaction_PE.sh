@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-WORKING_DIRECTORY=/home/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
-DATABASE=/home/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
-TMPDIR=/home
+WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
+DATABASE=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
+TMPDIR=/scratch_vol0
 
 # Aim: rarefy a feature table to compare alpha/beta diversity results
 
@@ -15,10 +15,10 @@ eval "$(conda shell.bash hook)"
 conda activate qiime2-2021.4
 
 # I'm doing this step in order to deal the no space left in cluster :
-export TMPDIR='/home/fungi'
+export TMPDIR='/scratch_vol0/fungi'
 echo $TMPDIR
 
-# Note: max-depth should be chosen based on ConTable.qzv (or on /home/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/export/visual/ConTable/sample-frequency-detail.csv)
+# Note: max-depth should be chosen based on ConTable.qzv (or on /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/export/visual/ConTable/sample-frequency-detail.csv)
 
 #   --i-table core/ConTable.qza \
 
