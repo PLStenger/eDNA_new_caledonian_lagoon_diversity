@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-WORKING_DIRECTORY=/home/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
-OUTPUT=/home/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/visual
+WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
+OUTPUT=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/visual
 
-DATABASE=/home/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
-TMPDIR=/home
+DATABASE=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
+TMPDIR=/scratch_vol0
 
 # Aim: perform diversity metrics and rarefaction
 
@@ -30,7 +30,7 @@ mkdir -p pcoa
 mkdir -p export/pcoa
 
 # I'm doing this step in order to deal the no space left in cluster :
-export TMPDIR='/home/fungi'
+export TMPDIR='/scratch_vol0/fungi'
 echo $TMPDIR
 
 # core_metrics_phylogenetic:
