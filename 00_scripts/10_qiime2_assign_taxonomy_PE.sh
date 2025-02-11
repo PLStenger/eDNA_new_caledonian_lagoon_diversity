@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-
-###############################################################
-### For 16S
-###############################################################
-
-
 WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
 OUTPUT=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/visual
 
@@ -27,8 +21,78 @@ TMPDIR=/scratch_vol0
 
 
 ###############################################################
-### For Bacteria
+### For all
 ###############################################################
+
+#############################################################################################################################################################################################
+# Amplification with 12S-Mifish-UE, 12S-Mimammal-UEB, 12S-Teleo, COI-Leray-Geller and 16S-Vert-Vences combined in same sequenced sample
+#############################################################################################################################################################################################
+
+###############################################################
+# 12S-Mifish-UE
+# Ferreira et al 2024
+# https://www.nature.com/articles/s41598-024-69963-7.pdf
+#
+# Mais, citation original de Miya et al 2015:
+# Miya,M.etal.MiFish,asetofuniversalPCRprimersformetabarcodingenvironmentalDNAfromfishes:Detectionofmorethan230 subtropical marine species. R. Soc. Open Sci. 2, 150088 (2015).
+#
+# miFISH-U + miFISH-E (∼ 170 bp) 12S 
+# 
+# (F)
+# miFISH-U_F: GTCGGTAAAACTCGTGCCAGC 
+# miFISH-E_F: GTTGGTAAATCTCGTGCCAGC
+#      
+# (R)
+# miFISH-U_R: CATAGTGGGGTATCTAATCCCAGTTTG 
+# miFISH-E_R: CATAGTGGGGTATCTAATCCTAGTTTG
+###############################################################
+
+###############################################################
+# 12S-Mimammal-UEB
+# Ushio et al 2017 mais regarder optimisation par Schenekar et al 2023
+#
+# MiMammal-UEB_5-7_fwd ACACTCTTTCCCTACACGACGCTCTTCCGATCT (N)5-7 GGRYTGGTHAATTTCGTGCCAGC 
+# MiMammal-UEB_5-7_rev GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT(N)5-7 CATAGTGRGGTATCTAATCYCAGTTTG
+#
+###############################################################
+
+###############################################################
+# 12S-Teleo
+# voir Polanco et al 2021 pour comparaison avec Mifish mais pas de séquences
+
+# Valentini et al 2016
+# teleo_F (L1848) ACACCGCCCGTCACTCT
+# teleo_R (H1913) CTTCCGGTACACTTACCATG
+# 
+###############################################################
+
+###############################################################
+# COI-Leray-Geller
+###############################################################
+# a 313 bp fragment from the COI gene using seven-tailed primer pairs of mICOIintF and jgHCO2190 (Geller et al., 2013; Leray et al., 2013)
+# These primers included six base pair tags on the 5′ end of each primer (Table S1) :
+
+# Primer Label	Primer Sequence (5'-3')
+# m1COIintF_Tag1	AGACGCGGWACWGGWTGAACWGTWTAYCCYCC
+# m1COIintF_Tag2	AGTGTAGGWACWGGWTGAACWGTWTAYCCYCC
+# m1COIintF_Tag3	ACTAGCGGWACWGGWTGAACWGTWTAYCCYCC
+# m1COIintF_Tag4	ACAGTCGGWACWGGWTGAACWGTWTAYCCYCC
+# m1COIintF_Tag5	ATCGACGGWACWGGWTGAACWGTWTAYCCYCC
+# m1COIintF_Tag6	ATGTCGGGWACWGGWTGAACWGTWTAYCCYCC
+# m1COIintF_Tag7	ATAGCAGGWACWGGWTGAACWGTWTAYCCYCC
+# jgHCO_Tag1	AGACGCTAIACYTCIGGRTGICCRAARAAYCA
+# jgHCO_Tag2	AGTGTATAIACYTCIGGRTGICCRAARAAYCA
+# jgHCO_Tag3	ACTAGCTAIACYTCIGGRTGICCRAARAAYCA
+# jgHCO_Tag4	ACAGTCTAIACYTCIGGRTGICCRAARAAYCA
+# jgHCO_Tag5	ATCGACTAIACYTCIGGRTGICCRAARAAYCA
+# jgHCO_Tag6	ATGTCGTAIACYTCIGGRTGICCRAARAAYCA
+# jgHCO_Tag7	ATAGCATAIACYTCIGGRTGICCRAARAAYCA
+
+
+###############################################################
+# 16S-Vert-Vences
+###############################################################
+
 
 cd $WORKING_DIRECTORY
 
@@ -40,191 +104,85 @@ export TMPDIR='/scratch_vol0/fungi'
 echo $TMPDIR
 
 # Make the directory (mkdir) only if not existe already(-p)
-mkdir -p taxonomy/16S
-mkdir -p export/taxonomy/16S
+mkdir -p taxonomy
+mkdir -p export/taxonomy
 
 # I'm doing this step in order to deal the no space left in cluster :
 export TMPDIR='/scratch_vol0/fungi'
 echo $TMPDIR
 
-###### All this step was for "old" database, now we uysed new ones 
-######
-######
-######
-######qiime tools import --type 'FeatureData[Taxonomy]' \
-######  --input-format HeaderlessTSVTaxonomyFormat \
-######  --input-path /Users/pierre-louisstenger/Documents/PostDoc_02_MetaBarcoding_IAC/02_Data/07_eDNA_new_caledonian_lagoon_diversity/eDNA_new_caledonian_lagoon_diversity/98_database_files/silva_nr99_v138_wSpecies_train_set.fa \
-######  --output-path taxonomy/RefTaxo.qza
-######
-######qiime tools import --type 'FeatureData[Sequence]' \
-######  --input-path /Users/pierre-louisstenger/Documents/PostDoc_02_MetaBarcoding_IAC/02_Data/07_eDNA_new_caledonian_lagoon_diversity/eDNA_new_caledonian_lagoon_diversity/98_database_files/silva_nr99_v138_wSpecies_train_set.fa \
-######  --output-path taxonomy/DataSeq.qza
-######
-######   
-####### Aim: Extract sequencing-like reads from a reference database.
-####### Warning: For v4 only !!! Not for its2 !!! 
-######
-####### The --p-trunc-len parameter should only be used to trim reference sequences,
-####### if query sequences are trimmed to this same length or shorter.
-###### 
-####### Paired sequences that successfully join will typically be variable in length.
-####### Single reads not truncated at a specific length may also be variable in length.
-######
-####### For classification of paired-end reads and untrimmed single-end reads,
-####### we recommend training a classifier on sequences that have been extracted
-####### at the appropriate primer sites, but are not trimmed !!!
-####### -----
-####### The primer sequences used for extracting reads should be the actual DNA-binding
-####### (i.e., biological) sequence contained within a primer construct.
-######
-####### It should NOT contain any non-biological, non-binding sequence,
-####### e.g., adapter, linker, or barcode sequences.
-######
-####### If you aren't sure what section of your primer sequences are actual DNA-binding
-####### you should consult whoever constructed your sequencing library, your sequencing
-####### center, or the original source literature on these primers.
-######
-####### If your primer sequences are > 30 nt long, they most likely contain some
-####### non-biological sequence !
-######
-######qiime feature-classifier extract-reads --i-sequences taxonomy/DataSeq.qza \
-######        --p-f-primer 'GTGCCAGCMGCCGCGGTAA' \
-######        --p-r-primer 'TCCTCCGCTTATTGATATGC' \
-######        --o-reads taxonomy/RefSeq.qza 
-######        
-######        #--p-trunc-len {params.length} \
-######
-####### Aim: Create a scikit-learn naive_bayes classifier for reads
-######
-######qiime feature-classifier fit-classifier-naive-bayes \
-######  --i-reference-reads taxonomy/RefSeq.qza \
-######  --i-reference-taxonomy taxonomy/RefTaxo.qza \
-######  --o-classifier taxonomy/Classifier.qza
+# All fish and mammals:
 
-# With new database :
+qiime rescript get-ncbi-data \
+    --p-query '(txid7777[ORGN] AND txid7898[ORGN] AND txid118072[ORGN] AND txid118072[ORGN] AND txid117569[ORGN] AND txid117565[ORGN] AND txid7878[ORGN] AND txid40674[ORGN] AND (12S OR 12S ribosomal RNA OR 12S rRNA) NOT environmental sample[Title] NOT environmental samples[Title] NOT environmental[Title] NOT uncultured[Title] NOT unclassified[Title] NOT unidentified[Title] NOT unverified[Title]))' \
+    --o-sequences taxonomy/RefTaxo.qza \
+    --o-taxonomy taxonomy/DataSeq.qza \
+    --p-n-jobs 5
 
-# See here for only V4 : https://www.dropbox.com/sh/nz7c5asn6b3hr1j/AADMAR-YZOBkpUQJLumZ9w3wa/ver_0.02?dl=0&subfolder_nav_tracking=1
-# See here for all 16S : https://www.dropbox.com/sh/ibpy9j0clw8dzwm/AAAIVuYnqUzAOxlg2fijePQna/ver_0.02?dl=0&subfolder_nav_tracking=1
+qiime feature-classifier classify-consensus-blast \
+  --i-query core/RepSeq.qza \
+  --i-reference-reads taxonomy/RefTaxo.qza \
+  --i-reference-taxonomy taxonomy/DataSeq.qza \
+  --p-perc-identity 0.70 \
+  --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq.qza \
+  --verbose
 
-# See this thread https://forum.qiime2.org/t/silva-138-classifiers/13131 (found because of this thread : https://forum.qiime2.org/t/silva-138-for-qiime2/12957/4)
+qiime feature-classifier classify-consensus-vsearch \
+    --i-query core/RepSeq.qza  \
+    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --p-perc-identity 0.77 \
+    --p-query-cov 0.3 \
+    --p-top-hits-only \
+    --p-maxaccepts 1 \
+    --p-strand 'both' \
+    --p-unassignable-label 'Unassigned' \
+    --p-threads 12 \
+    --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qza
+    
+qiime feature-classifier classify-consensus-vsearch \
+    --i-query core/RarRepSeq.qza  \
+    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --p-perc-identity 0.77 \
+    --p-query-cov 0.3 \
+    --p-top-hits-only \
+    --p-maxaccepts 1 \
+    --p-strand 'both' \
+    --p-unassignable-label 'Unassigned' \
+    --p-threads 12 \
+    --o-classification taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza
 
-#cp $DATABASE/SILVA-138-SSURef-full-length-classifier.qza taxonomy/Classifier.qza
-cp /scratch_vol0/fungi/Mayotte_microorganism_colonisation/98_database_files/SILVA-138-SSURef-Full-Seqs.qza taxonomy/16S/DataSeq.qza
-cp /scratch_vol0/fungi/Mayotte_microorganism_colonisation/98_database_files/Silva-v138-full-length-seq-taxonomy.qza taxonomy/16S/RefTaxo.qza
-
-# Script Nolwenn
-#R1_Primers = c("GTGCCAGCMGCCGCGGTAA","GTGYCAGCMGCCGCGGTAA")
-#R2_Primers = c("GGACTACHVGGGTWTCTAAT","GGACTACNVGGGTWTCTAAT")
-
-# Here only for V4 --> forward: 'GTGCCAGCMGCCGCGGTAA'  # 515f & reverse: 'GGACTACHVGGGTWTCTAAT' # 806r
-#qiime feature-classifier extract-reads --i-sequences taxonomy/DataSeq.qza \
-#        --p-f-primer 'GTGCCAGCMGCCGCGGTAA' \
-#        --p-r-primer 'TCCTCCGCTTATTGATATGC' \
-#        --o-reads taxonomy/RefSeq.qza 
-
-# Here for V1V2V3V4 --> 27F 'AGAGTTTGATCCTGGCTCAG' & reverse: 'GGACTACHVGGGTWTCTAAT' # 806r
-#qiime feature-classifier extract-reads --i-sequences taxonomy/DataSeq.qza \
-#        --p-f-primer 'AGAGTTTGATCCTGGCTCAG' \
-#        --p-r-primer 'TCCTCCGCTTATTGATATGC' \
-#        --o-reads taxonomy/RefSeq.qza         
-
-
-# If necessary :
-# https://forum.qiime2.org/t/available-pre-trained-classifier-of-v3-v4-341f-805r-region-with-gg-99/3275
-# Available: Pre-trained classifier of V3-V4 (341F, 805R) region with gg_99
-
-# 16S : V3/V4 : V3V4 (amplified with primers 341F–805R)
-###qiime feature-classifier extract-reads --i-sequences taxonomy/DataSeq.qza \
-###        --p-f-primer 'CCTACGGGNGGCWGCAG' \
-###        --p-r-primer 'GACTACHVGGGTATCTAATCC' \
-###        --o-reads taxonomy/RefSeq.qza 
-###
-
-# According ADNiD: Caporaso et al. (1), 515f Original and 806r Original
-
-
-# From Clarisse and from bioinformatics <bioinformatics@microsynth.ch>
-# The sequences for the V34 primers were:
-# 341F    CCTACGGGNGGCWGCAG       805R    GACTACHVGGGTATCTAATCC
-qiime feature-classifier extract-reads --i-sequences taxonomy/16S/DataSeq.qza \
-        --p-f-primer 'CCTACGGGNGGCWGCAG' \
-        --p-r-primer 'GACTACHVGGGTATCTAATCC' \
-        --o-reads taxonomy/16S/RefSeq.qza 
-
-
-# Aim: Create a scikit-learn naive_bayes classifier for reads
-
-qiime feature-classifier fit-classifier-naive-bayes \
-  --i-reference-reads taxonomy/16S/RefSeq.qza \
-  --i-reference-taxonomy taxonomy/16S/RefTaxo.qza \
-  --o-classifier taxonomy/16S/Classifier.qza
-  
-# Aim: Create a scikit-learn naive_bayes classifier for reads
-
-qiime feature-classifier classify-sklearn \
-   --i-classifier taxonomy/16S/Classifier.qza \
-   --i-reads core/ConRepSeq.qza \
-   --o-classification taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq.qza
-   
-qiime feature-classifier classify-sklearn \
-  --i-classifier taxonomy/16S/Classifier.qza \
-  --i-reads core/RepSeq.qza \
-  --o-classification taxonomy/16S/taxonomy_reads-per-batch_RepSeq.qza
-
-qiime feature-classifier classify-sklearn \
-  --i-classifier taxonomy/16S/Classifier.qza \
-  --i-reads core/RarRepSeq.qza \
-  --o-classification taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq.qza
-
-# Switch to https://chmi-sops.github.io/mydoc_qiime2.html#step-9-assign-taxonomy
-# --p-reads-per-batch 0 (default)
-
-qiime metadata tabulate \
-  --m-input-file taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq.qza \
-  --o-visualization taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq.qzv
-
-qiime metadata tabulate \
-  --m-input-file taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq.qza \
-  --o-visualization taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq.qzv
-  
-qiime metadata tabulate \
-  --m-input-file taxonomy/16S/taxonomy_reads-per-batch_RepSeq.qza \
-  --o-visualization taxonomy/16S/taxonomy_reads-per-batch_RepSeq.qzv  
-
-# Now create a visualization of the classified sequences.
-  
-qiime taxa barplot \
-  --i-table core/Table.qza \
-  --i-taxonomy taxonomy/16S/taxonomy_reads-per-batch_RepSeq.qza \
-  --m-metadata-file $DATABASE/sample-metadata.tsv \
-  --o-visualization taxonomy/16S/16Staxa-bar-plots_reads-per-batch_RepSeq.qzv
-
-qiime taxa barplot \
-  --i-table core/ConTable.qza \
-  --i-taxonomy taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq.qza \
-  --m-metadata-file $DATABASE/sample-metadata.tsv \
-  --o-visualization taxonomy/16S/16Staxa-bar-plots_reads-per-batch_ConRepSeq.qzv
-  
-qiime taxa barplot \
+ qiime taxa barplot \
   --i-table core/RarTable.qza \
-  --i-taxonomy taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq.qza \
+  --i-taxonomy taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza \
   --m-metadata-file $DATABASE/sample-metadata.tsv \
-  --o-visualization taxonomy/16S/16Staxa-bar-plots_reads-per-batch_RarRepSeq.qzv  
-
-qiime tools export --input-path taxonomy/16S/Classifier.qza --output-path export/taxonomy/16S/Classifier
-qiime tools export --input-path taxonomy/16S/RefSeq.qza --output-path export/taxonomy/16S/RefSeq
-qiime tools export --input-path taxonomy/16S/16SDataSeq.qza --output-path export/taxonomy/16S/16SDataSeq
-qiime tools export --input-path taxonomy/16S/RefTaxo.qza --output-path export/taxonomy/16S/RefTaxo
+  --o-visualization taxonomy/taxa-bar-plots_reads-per-batch_RarRepSeq_vsearch.qzv 
   
-qiime tools export --input-path taxonomy/16S/16Staxa-bar-plots_reads-per-batch_RarRepSeq.qzv --output-path export/taxonomy/16S/16Staxa-bar-plots_reads-per-batch_RarRepSeq
-qiime tools export --input-path taxonomy/16S/16Staxa-bar-plots_reads-per-batch_ConRepSeq.qzv --output-path export/taxonomy/16S/16Staxa-bar-plots_reads-per-batch_ConRepSeq
-qiime tools export --input-path taxonomy/16S/16Staxa-bar-plots_reads-per-batch_RepSeq.qzv --output-path export/taxonomy/16S/16Staxa-bar-plots_reads-per-batch_RepSeq
+  
+   qiime taxa barplot \
+  --i-table core/RarTable.qza \
+  --i-taxonomy taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qza \
+  --m-metadata-file $DATABASE/sample-metadata.tsv \
+  --o-visualization taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch.qzv 
 
-qiime tools export --input-path taxonomy/16S/taxonomy_reads-per-batch_RepSeq.qzv --output-path export/taxonomy/16S/taxonomy_reads-per-batch_RepSeq_visual
-qiime tools export --input-path taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq.qzv --output-path export/taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq_visual
-qiime tools export --input-path taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq.qzv --output-path export/taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq_visual
 
-qiime tools export --input-path taxonomy/16S/taxonomy_reads-per-batch_RepSeq.qza --output-path export/taxonomy/16S/taxonomy_reads-per-batch_RepSeq
-qiime tools export --input-path taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq.qza --output-path export/taxonomy/16S/taxonomy_reads-per-batch_ConRepSeq
-qiime tools export --input-path taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq.qza --output-path export/taxonomy/16S/taxonomy_reads-per-batch_RarRepSeq
+
+
+qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_RarRepSeq_vsearch.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_RarRepSeq_vsearch
+## qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_ConRepSeq.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_ConRepSeq
+## qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_RepSeq.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_RepSeq
+qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch
+
+#qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_visual
+qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch_visual
+## qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_ConRepSeq.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_ConRepSeq_visual
+qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch_visual
+
+qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch
+qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch
+## qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_ConRepSeq.qza --output-path export/taxonomy/taxonomy_reads-per-batch_ConRepSeq
+qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RarRepSeq.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RarRepSeq
+
+
 
