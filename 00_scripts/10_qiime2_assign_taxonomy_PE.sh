@@ -121,6 +121,8 @@ mkdir -p export/taxonomy
 #    --o-taxonomy taxonomy/DataSeq.qza \
 #    --p-n-jobs 1
 
+# from https://www.researchgate.net/publication/349299040_Mitohelper_A_mitochondrial_reference_sequence_analysis_tool_for_fish_eDNA_studies
+# and https://github.com/aomlomics/mitohelper/tree/master/QIIME-compatible
 scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-seqs.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
 scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-tax.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
 
