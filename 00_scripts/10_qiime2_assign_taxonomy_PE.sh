@@ -113,7 +113,7 @@ qiime rescript get-ncbi-data \
     --p-query '(txid7777[ORGN] OR txid7898[ORGN] OR txid118072[ORGN] OR txid117569[ORGN] OR txid117565[ORGN] OR txid7878[ORGN] OR txid40674[ORGN]) AND (12S OR "12S ribosomal RNA" OR "12S rRNA") NOT "environmental sample"[Title] NOT "environmental samples"[Title] NOT "environmental"[Title] NOT "uncultured"[Title] NOT "unclassified"[Title] NOT "unidentified"[Title] NOT "unverified"[Title]' \
     --o-sequences taxonomy/RefTaxo.qza \
     --o-taxonomy taxonomy/DataSeq.qza \
-    --p-n-jobs 5
+    --p-n-jobs 1
 
 qiime feature-classifier classify-consensus-blast \
   --i-query core/RepSeq.qza \
