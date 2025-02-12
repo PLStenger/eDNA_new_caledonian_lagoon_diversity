@@ -107,17 +107,31 @@ echo $TMPDIR
 mkdir -p taxonomy
 mkdir -p export/taxonomy
 
+
+#qiime tools import \
+#  --type 'FeatureData[Sequence]' \
+#  --input-path /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/MI_Fish_mito-all_version_4_09_from_2025_02_08.fasta \
+#  --output-path MI_Fish.qza
+
 # All fish and mammals:
 
-qiime rescript get-ncbi-data \
-    --p-query '(txid7777[ORGN] OR txid7898[ORGN] OR txid118072[ORGN] OR txid117569[ORGN] OR txid117565[ORGN] OR txid7878[ORGN] OR txid40674[ORGN]) AND (12S OR "12S ribosomal RNA" OR "12S rRNA") NOT "environmental sample"[Title] NOT "environmental samples"[Title] NOT "environmental"[Title] NOT "uncultured"[Title] NOT "unclassified"[Title] NOT "unidentified"[Title] NOT "unverified"[Title]' \
-    --o-sequences taxonomy/RefTaxo.qza \
-    --o-taxonomy taxonomy/DataSeq.qza \
-    --p-n-jobs 1
+#qiime rescript get-ncbi-data \
+#    --p-query '(txid7777[ORGN] OR txid7898[ORGN] OR txid118072[ORGN] OR txid117569[ORGN] OR txid117565[ORGN] OR txid7878[ORGN] OR txid40674[ORGN]) AND (12S OR "12S ribosomal RNA" OR "12S rRNA") NOT "environmental sample"[Title] NOT "environmental samples"[Title] NOT "environmental"[Title] NOT "uncultured"[Title] NOT "unclassified"[Title] NOT "unidentified"[Title] NOT "unverified"[Title]' \
+#    --o-sequences taxonomy/12S-16S-18S-tax.qza \
+#    --o-taxonomy taxonomy/DataSeq.qza \
+#    --p-n-jobs 1
 
+scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-seqs.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-tax.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+
+ qiime feature-classifier fit-classifier-naive-bayes \
+   --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
+   --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
+   --o-classifier taxonomy/Classifier.qza
+ 
 qiime feature-classifier classify-consensus-blast \
   --i-query core/RepSeq.qza \
-  --i-reference-reads taxonomy/RefTaxo.qza \
+  --i-reference-reads taxonomy/12S-16S-18S-tax.qza \
   --i-reference-taxonomy taxonomy/DataSeq.qza \
   --p-perc-identity 0.70 \
   --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq.qza \
@@ -125,7 +139,7 @@ qiime feature-classifier classify-consensus-blast \
 
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
-    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-reads taxonomy/12S-16S-18S-tax.qza \
     --i-reference-taxonomy taxonomy/DataSeq.qza \
     --p-perc-identity 0.77 \
     --p-query-cov 0.3 \
@@ -138,7 +152,7 @@ qiime feature-classifier classify-consensus-vsearch \
     
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RarRepSeq.qza  \
-    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-reads taxonomy/12S-16S-18S-tax.qza \
     --i-reference-taxonomy taxonomy/DataSeq.qza \
     --p-perc-identity 0.77 \
     --p-query-cov 0.3 \
