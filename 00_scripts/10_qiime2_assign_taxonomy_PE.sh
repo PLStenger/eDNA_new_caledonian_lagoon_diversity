@@ -128,19 +128,30 @@ scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_file
    --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
    --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
    --o-classifier taxonomy/Classifier.qza
+
+
+ qiime feature-classifier classify-sklearn \
+   --i-classifier taxonomy/Classifier.qza \
+   --i-reads core/RepSeq.qza \
+   --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_sklearn.qza
+ 
+ qiime feature-classifier classify-sklearn \
+   --i-classifier taxonomy/Classifier.qza \
+   --i-reads core/RarRepSeq.qza \
+   --o-classification taxonomy/taxonomy_reads-per-batch_RarRepSeq_sklearn.qza
  
 qiime feature-classifier classify-consensus-blast \
   --i-query core/RepSeq.qza \
-  --i-reference-reads taxonomy/12S-16S-18S-tax.qza \
-  --i-reference-taxonomy taxonomy/DataSeq.qza \
+  --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
+  --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
   --p-perc-identity 0.70 \
-  --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq.qza \
+  --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_blast.qza \
   --verbose
 
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
-    --i-reference-reads taxonomy/12S-16S-18S-tax.qza \
-    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
+    --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
     --p-perc-identity 0.77 \
     --p-query-cov 0.3 \
     --p-top-hits-only \
@@ -152,8 +163,8 @@ qiime feature-classifier classify-consensus-vsearch \
     
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RarRepSeq.qza  \
-    --i-reference-reads taxonomy/12S-16S-18S-tax.qza \
-    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
+    --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
     --p-perc-identity 0.77 \
     --p-query-cov 0.3 \
     --p-top-hits-only \
@@ -177,21 +188,17 @@ qiime feature-classifier classify-consensus-vsearch \
   --o-visualization taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch.qzv 
 
 
-
+qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq_sklearn.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_sklearn
+qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RarRepSeq_sklearn.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RarRepSeq_sklearn
 
 qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_RarRepSeq_vsearch.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_RarRepSeq_vsearch
-## qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_ConRepSeq.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_ConRepSeq
-## qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_RepSeq.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_RepSeq
 qiime tools export --input-path taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch.qzv --output-path export/taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch
 
-#qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_visual
 qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch_visual
-## qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_ConRepSeq.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_ConRepSeq_visual
 qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qzv --output-path export/taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch_visual
 
 qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch
 qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch
-## qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_ConRepSeq.qza --output-path export/taxonomy/taxonomy_reads-per-batch_ConRepSeq
 qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RarRepSeq.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RarRepSeq
 
 
