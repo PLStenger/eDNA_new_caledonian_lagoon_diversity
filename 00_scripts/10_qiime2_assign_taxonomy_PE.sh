@@ -121,11 +121,20 @@ mkdir -p export/taxonomy
 #    --o-taxonomy taxonomy/DataSeq.qza \
 #    --p-n-jobs 1
 
-qiime rescript get-ncbi-data \
-    --p-query '(12S[ALL] NOT bacteria[ORGN])' \
-    --o-sequences taxonomy/RefTaxo.qza \
-    --o-taxonomy taxonomy/DataSeq.qza \
-    --p-n-jobs 5    
+#qiime rescript get-ncbi-data \
+#    --p-query '(12S[ALL] NOT bacteria[ORGN])' \
+#    --o-sequences taxonomy/RefTaxo.qza \
+#    --o-taxonomy taxonomy/DataSeq.qza \
+#    --p-n-jobs 5    
+
+until qiime rescript get-ncbi-data \
+  --p-query '(12S[ALL] NOT bacteria[ORGN])' \
+  --o-sequences taxonomy/RefTaxo.qza \
+  --o-taxonomy taxonomy/DataSeq.qza \
+  --p-n-jobs 1; do
+    echo "La connexion a échoué, nouvelle tentative..."
+    sleep 10
+done    
 
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
