@@ -122,10 +122,10 @@ mkdir -p export/taxonomy
 #    --p-n-jobs 1
 
 qiime rescript get-ncbi-data \
-    --p-query '(txid40674[ORGN]) AND (12S)' \
+    --p-query '(12S[ALL] NOT bacteria[ORGN])' \
     --o-sequences taxonomy/RefTaxo.qza \
     --o-taxonomy taxonomy/DataSeq.qza \
-    --p-n-jobs 1    
+    --p-n-jobs 5    
 
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
