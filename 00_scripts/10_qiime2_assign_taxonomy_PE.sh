@@ -115,11 +115,17 @@ mkdir -p export/taxonomy
 
 # All mammals:
 
+#qiime rescript get-ncbi-data \
+#    --p-query '(txid40674[ORGN]) AND (12S OR "12S ribosomal RNA" OR "12S rRNA") NOT "environmental sample"[Title] NOT "environmental samples"[Title] NOT "environmental"[Title] NOT "uncultured"[Title] NOT "unclassified"[Title] NOT "unidentified"[Title] NOT "unverified"[Title]' \
+#    --o-sequences taxonomy/RefTaxo.qza \
+#    --o-taxonomy taxonomy/DataSeq.qza \
+#    --p-n-jobs 1
+
 qiime rescript get-ncbi-data \
-    --p-query '(txid40674[ORGN]) AND (12S OR "12S ribosomal RNA" OR "12S rRNA") NOT "environmental sample"[Title] NOT "environmental samples"[Title] NOT "environmental"[Title] NOT "uncultured"[Title] NOT "unclassified"[Title] NOT "unidentified"[Title] NOT "unverified"[Title]' \
+    --p-query '(txid40674[ORGN]) AND (12S)' \
     --o-sequences taxonomy/RefTaxo.qza \
     --o-taxonomy taxonomy/DataSeq.qza \
-    --p-n-jobs 1
+    --p-n-jobs 1    
 
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
