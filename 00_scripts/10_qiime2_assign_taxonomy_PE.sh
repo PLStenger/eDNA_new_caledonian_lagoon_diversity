@@ -126,37 +126,37 @@ mkdir -p export/taxonomy
 #scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-seqs.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
 #scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-tax.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
 
-scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-seqs-derep-uniq.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
-scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-tax-derep-uniq.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+#scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-seqs-derep-uniq.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+#scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-tax-derep-uniq.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
 
 
- qiime feature-classifier fit-classifier-naive-bayes \
-   --i-reference-reads taxonomy/12S-seqs-derep-uniq.qza \
-   --i-reference-taxonomy taxonomy/12S-tax-derep-uniq.qza \
-   --o-classifier taxonomy/Classifier.qza
+# qiime feature-classifier fit-classifier-naive-bayes \
+#   --i-reference-reads taxonomy/12S-seqs-derep-uniq.qza \
+#   --i-reference-taxonomy taxonomy/12S-tax-derep-uniq.qza \
+#   --o-classifier taxonomy/Classifier.qza
 
 
- qiime feature-classifier classify-sklearn \
-   --i-classifier taxonomy/Classifier.qza \
-   --i-reads core/RepSeq.qza \
-   --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_sklearn.qza
+# qiime feature-classifier classify-sklearn \
+#   --i-classifier taxonomy/Classifier.qza \
+#   --i-reads core/RepSeq.qza \
+#   --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_sklearn.qza
  
- qiime feature-classifier classify-sklearn \
-   --i-classifier taxonomy/Classifier.qza \
-   --i-reads core/RarRepSeq.qza \
-   --o-classification taxonomy/taxonomy_reads-per-batch_RarRepSeq_sklearn.qza
+# qiime feature-classifier classify-sklearn \
+#   --i-classifier taxonomy/Classifier.qza \
+#   --i-reads core/RarRepSeq.qza \
+#   --o-classification taxonomy/taxonomy_reads-per-batch_RarRepSeq_sklearn.qza
  
-#qiime feature-classifier classify-consensus-blast \
-#  --i-query core/RepSeq.qza \
-#  --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
-#  --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
-#  --p-perc-identity 0.70 \
-#  --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_blast.qza \
-#  --verbose
+##qiime feature-classifier classify-consensus-blast \
+##  --i-query core/RepSeq.qza \
+##  --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
+##  --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
+##  --p-perc-identity 0.70 \
+##  --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_blast.qza \
+##  --verbose
 
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
-    --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
+    --i-reference-reads taxonomy/12S-seqs-derep-uniq.qza \
     --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
     --p-perc-identity 0.77 \
     --p-query-cov 0.3 \
@@ -169,7 +169,7 @@ qiime feature-classifier classify-consensus-vsearch \
     
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RarRepSeq.qza  \
-    --i-reference-reads taxonomy/12S-16S-18S-seqs.qza \
+    --i-reference-reads taxonomy/12S-seqs-derep-uniq.qza \
     --i-reference-taxonomy taxonomy/12S-16S-18S-tax.qza \
     --p-perc-identity 0.77 \
     --p-query-cov 0.3 \
