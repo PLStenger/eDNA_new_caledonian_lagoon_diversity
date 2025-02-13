@@ -113,13 +113,40 @@ mkdir -p export/taxonomy
 #  --input-path /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/MI_Fish_mito-all_version_4_09_from_2025_02_08.fasta \
 #  --output-path MI_Fish.qza
 
-# All fish and mammals:
+# All mammals:
 
-#qiime rescript get-ncbi-data \
-#    --p-query '(txid7777[ORGN] OR txid7898[ORGN] OR txid118072[ORGN] OR txid117569[ORGN] OR txid117565[ORGN] OR txid7878[ORGN] OR txid40674[ORGN]) AND (12S OR "12S ribosomal RNA" OR "12S rRNA") NOT "environmental sample"[Title] NOT "environmental samples"[Title] NOT "environmental"[Title] NOT "uncultured"[Title] NOT "unclassified"[Title] NOT "unidentified"[Title] NOT "unverified"[Title]' \
-#    --o-sequences taxonomy/12S-16S-18S-tax.qza \
-#    --o-taxonomy taxonomy/DataSeq.qza \
-#    --p-n-jobs 1
+qiime rescript get-ncbi-data \
+    --p-query '(txid40674[ORGN]) AND (12S OR "12S ribosomal RNA" OR "12S rRNA") NOT "environmental sample"[Title] NOT "environmental samples"[Title] NOT "environmental"[Title] NOT "uncultured"[Title] NOT "unclassified"[Title] NOT "unidentified"[Title] NOT "unverified"[Title]' \
+    --o-sequences taxonomy/RefTaxo.qza \
+    --o-taxonomy taxonomy/DataSeq.qza \
+    --p-n-jobs 1
+
+qiime feature-classifier classify-consensus-vsearch \
+    --i-query core/RepSeq.qza  \
+    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --p-perc-identity 0.77 \
+    --p-query-cov 0.3 \
+    --p-top-hits-only \
+    --p-maxaccepts 1 \
+    --p-strand 'both' \
+    --p-unassignable-label 'Unassigned' \
+    --p-threads 12 \
+    --o-classification taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qza
+    
+qiime feature-classifier classify-consensus-vsearch \
+    --i-query core/RarRepSeq.qza  \
+    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --p-perc-identity 0.77 \
+    --p-query-cov 0.3 \
+    --p-top-hits-only \
+    --p-maxaccepts 1 \
+    --p-strand 'both' \
+    --p-unassignable-label 'Unassigned' \
+    --p-threads 12 \
+    --o-classification taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza
+
 
 # from https://www.researchgate.net/publication/349299040_Mitohelper_A_mitochondrial_reference_sequence_analysis_tool_for_fish_eDNA_studies
 # and https://github.com/aomlomics/mitohelper/tree/master/QIIME-compatible
@@ -180,18 +207,18 @@ qiime feature-classifier classify-consensus-vsearch \
     --p-threads 12 \
     --o-classification taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza
 
- qiime taxa barplot \
-  --i-table core/RarTable.qza \
-  --i-taxonomy taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza \
-  --m-metadata-file $DATABASE/sample-metadata.tsv \
-  --o-visualization taxonomy/taxa-bar-plots_reads-per-batch_RarRepSeq_vsearch.qzv 
+# qiime taxa barplot \
+#  --i-table core/RarTable.qza \
+#  --i-taxonomy taxonomy/taxonomy_reads-per-batch_RarRepSeq_vsearch.qza \
+#  --m-metadata-file $DATABASE/sample-metadata.tsv \
+#  --o-visualization taxonomy/taxa-bar-plots_reads-per-batch_RarRepSeq_vsearch.qzv 
   
   
-   qiime taxa barplot \
-  --i-table core/RarTable.qza \
-  --i-taxonomy taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qza \
-  --m-metadata-file $DATABASE/sample-metadata.tsv \
-  --o-visualization taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch.qzv 
+#   qiime taxa barplot \
+#  --i-table core/RarTable.qza \
+#  --i-taxonomy taxonomy/taxonomy_reads-per-batch_RepSeq_vsearch.qza \
+#  --m-metadata-file $DATABASE/sample-metadata.tsv \
+#  --o-visualization taxonomy/taxa-bar-plots_reads-per-batch_RepSeq_vsearch.qzv 
 
 
 qiime tools export --input-path taxonomy/taxonomy_reads-per-batch_RepSeq_sklearn.qza --output-path export/taxonomy/taxonomy_reads-per-batch_RepSeq_sklearn
