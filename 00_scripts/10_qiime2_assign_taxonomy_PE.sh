@@ -127,15 +127,19 @@ mkdir -p export/taxonomy
 #    --o-taxonomy taxonomy/DataSeq.qza \
 #    --p-n-jobs 5    
 
+# see https://support.nlm.nih.gov/kbArticle/?pn=KA-05317
+export NCBI_API_KEY="b6c27d47994cfeefbb5bf06d760ab2c6db09"
+
 until qiime rescript get-ncbi-data \
-  --p-query '(12S[ALL] NOT bacteria[ORGN])' \
+  --p-query '(12S[ALL] AND txid7777[ORGN])' \
   --o-sequences taxonomy/RefTaxo.qza \
   --o-taxonomy taxonomy/DataSeq.qza \
-  --p-n-jobs 1; do
+  --p-n-jobs 1 \
+  --p-delay 5; do
     echo "La connexion a échoué, nouvelle tentative..."
     sleep 10
 done    
-
+    
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
     --i-reference-reads taxonomy/RefTaxo.qza \
