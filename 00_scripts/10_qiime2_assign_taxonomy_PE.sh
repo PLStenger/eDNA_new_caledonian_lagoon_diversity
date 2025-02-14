@@ -140,6 +140,20 @@ mkdir -p export/taxonomy
 #    sleep 10
 #done    
 
+#Stocked in:
+#- /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/RefTaxo_ncbi_12S_ALL_shark_txid7777.qza
+#- /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/DataSeq_ncbi_12S_ALL_shark_txid7777.qza
+
+export NCBI_API_KEY="b6c27d47994cfeefbb5bf06d760ab2c6db09"
+
+until qiime rescript get-ncbi-data \
+  --p-query '(txid7777[ORGN])' \
+  --o-sequences taxonomy/RefTaxo.qza \
+  --o-taxonomy taxonomy/DataSeq.qza \
+  --p-n-jobs 1; do
+    echo "La connexion a échoué, nouvelle tentative..."
+    sleep 10
+done    
 
 #qiime metadata tabulate \
 #    --m-input-file taxonomy/DataSeq.qza \
@@ -149,34 +163,37 @@ mkdir -p export/taxonomy
 #    --i-data core/RepSeq.qza \
 #    --o-visualization core/RepSeq.qzv
 
-#qiime feature-classifier fit-classifier-naive-bayes \
-#    --i-reference-reads taxonomy/RefTaxo.qza \
-#    --i-reference-taxonomy taxonomy/DataSeq.qza \
-#    --o-classifier taxonomy/naive_bayes_classifier.qza    
+qiime feature-classifier fit-classifier-naive-bayes \
+    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --o-classifier taxonomy/naive_bayes_classifier.qza    
 
-#qiime feature-classifier classify-sklearn \
-#    --i-classifier taxonomy/naive_bayes_classifier.qza \
-#    --i-reads core/RepSeq.qza \
-#    --o-classification taxonomy/taxonomy_sklearn.qza
-
-
-qiime metadata tabulate \
-    --m-input-file taxonomy/RefTaxo.qza \
-    --o-visualization taxonomy/RefTaxo.qzv
-
-    qiime tools export \
-    --input-path taxonomy/RefTaxo.qzv \
-    --output-path export/taxonomy/RefTaxo
-    
-    qiime feature-classifier classify-sklearn \
+qiime feature-classifier classify-sklearn \
     --i-classifier taxonomy/naive_bayes_classifier.qza \
     --i-reads core/RepSeq.qza \
-    --p-confidence 0.7 \
-    --o-classification taxonomy/taxonomy_sklearn_lessstrict.qza
-    
+    --o-classification taxonomy/taxonomy_classify_sklearn.qza
+
 qiime tools export \
-    --input-path taxonomy/taxonomy_sklearn_lessstrict.qza \
-    --output-path export/taxonomy/taxonomy_exported
+    --input-path taxonomy/taxonomy_classify_sklearn.qza \
+    --output-path export/taxonomy/taxonomy_classify_sklearn
+
+#qiime metadata tabulate \
+#    --m-input-file taxonomy/RefTaxo.qza \
+#    --o-visualization taxonomy/RefTaxo.qzv
+
+#    qiime tools export \
+#    --input-path taxonomy/RefTaxo.qzv \
+#    --output-path export/taxonomy/RefTaxo
+    
+#    qiime feature-classifier classify-sklearn \
+#    --i-classifier taxonomy/naive_bayes_classifier.qza \
+#    --i-reads core/RepSeq.qza \
+#    --p-confidence 0.7 \
+ #   --o-classification taxonomy/taxonomy_sklearn_lessstrict.qza
+    
+#qiime tools export \
+#    --input-path taxonomy/taxonomy_sklearn_lessstrict.qza \
+#    --output-path export/taxonomy/taxonomy_exported
 
 
     qiime feature-classifier classify-consensus-vsearch \
@@ -190,7 +207,6 @@ qiime tools export \
     --p-unassignable-label 'Unassigned' \
     --p-threads 12 \
     --o-classification taxonomy/taxonomy_vsearch_more_hits.qza
-
 
     qiime tools export \
     --input-path taxonomy/taxonomy_vsearch_more_hits.qza \
