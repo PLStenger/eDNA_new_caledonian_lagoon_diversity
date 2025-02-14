@@ -127,26 +127,46 @@ mkdir -p export/taxonomy
 #    --o-taxonomy taxonomy/DataSeq.qza \
 #    --p-n-jobs 5    
 
+## OK ÇA MARCHE !!!
 # see https://support.nlm.nih.gov/kbArticle/?pn=KA-05317
-export NCBI_API_KEY="b6c27d47994cfeefbb5bf06d760ab2c6db09"
+#export NCBI_API_KEY="b6c27d47994cfeefbb5bf06d760ab2c6db09"
 
-until qiime rescript get-ncbi-data \
-  --p-query '(12S[ALL] AND txid7777[ORGN])' \
-  --o-sequences taxonomy/RefTaxo.qza \
-  --o-taxonomy taxonomy/DataSeq.qza \
-  --p-n-jobs 1; do
-    echo "La connexion a échoué, nouvelle tentative..."
-    sleep 10
-done    
+#until qiime rescript get-ncbi-data \
+#  --p-query '(12S[ALL] AND txid7777[ORGN])' \
+#  --o-sequences taxonomy/RefTaxo.qza \
+#  --o-taxonomy taxonomy/DataSeq.qza \
+#  --p-n-jobs 1; do
+#    echo "La connexion a échoué, nouvelle tentative..."
+#    sleep 10
+#done    
+
+
+qiime metadata tabulate \
+    --m-input-file taxonomy/DataSeq.qza \
+    --o-visualization taxonomy/DataSeq.qzv
+
+qiime feature-table tabulate-seqs \
+    --i-data core/RepSeq.qza \
+    --o-visualization core/RepSeq.qzv
+
+qiime feature-classifier fit-classifier-naive-bayes \
+    --i-reference-reads taxonomy/RefTaxo.qza \
+    --i-reference-taxonomy taxonomy/DataSeq.qza \
+    --o-classifier taxonomy/naive_bayes_classifier.qza    
+
+qiime feature-classifier classify-sklearn \
+    --i-classifier taxonomy/naive_bayes_classifier.qza \
+    --i-reads core/RepSeq.qza \
+    --o-classification taxonomy/taxonomy_sklearn.qza
     
 qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RepSeq.qza  \
     --i-reference-reads taxonomy/RefTaxo.qza \
     --i-reference-taxonomy taxonomy/DataSeq.qza \
-    --p-perc-identity 0.77 \
-    --p-query-cov 0.3 \
+    --p-perc-identity 0.90 \
+    --p-query-cov 0.7 \
     --p-top-hits-only \
-    --p-maxaccepts 1 \
+    --p-maxaccepts 10 \
     --p-strand 'both' \
     --p-unassignable-label 'Unassigned' \
     --p-threads 12 \
@@ -156,10 +176,10 @@ qiime feature-classifier classify-consensus-vsearch \
     --i-query core/RarRepSeq.qza  \
     --i-reference-reads taxonomy/RefTaxo.qza \
     --i-reference-taxonomy taxonomy/DataSeq.qza \
-    --p-perc-identity 0.77 \
-    --p-query-cov 0.3 \
+    --p-perc-identity 0.90 \
+    --p-query-cov 0.7 \
     --p-top-hits-only \
-    --p-maxaccepts 1 \
+    --p-maxaccepts 10 \
     --p-strand 'both' \
     --p-unassignable-label 'Unassigned' \
     --p-threads 12 \
