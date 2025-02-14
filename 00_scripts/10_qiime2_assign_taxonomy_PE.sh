@@ -134,8 +134,7 @@ until qiime rescript get-ncbi-data \
   --p-query '(12S[ALL] AND txid7777[ORGN])' \
   --o-sequences taxonomy/RefTaxo.qza \
   --o-taxonomy taxonomy/DataSeq.qza \
-  --p-n-jobs 1 \
-  --p-delay 5; do
+  --p-n-jobs 1; do
     echo "La connexion a échoué, nouvelle tentative..."
     sleep 10
 done    
