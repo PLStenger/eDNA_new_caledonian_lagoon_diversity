@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-WORKING_DIRECTORY=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
-OUTPUT=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/visual
+WORKING_DIRECTORY=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
+OUTPUT=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/visual
 
-DATABASE=/scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
+DATABASE=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
 TMPDIR=/scratch_vol0
 
 
@@ -110,7 +110,7 @@ mkdir -p export/taxonomy
 
 #qiime tools import \
 #  --type 'FeatureData[Sequence]' \
-#  --input-path /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/MI_Fish_mito-all_version_4_09_from_2025_02_08.fasta \
+#  --input-path /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/MI_Fish_mito-all_version_4_09_from_2025_02_08.fasta \
 #  --output-path MI_Fish.qza
 
 # All mammals:
@@ -141,8 +141,8 @@ mkdir -p export/taxonomy
 #done    
 
 #Stocked in:
-#- /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/RefTaxo_ncbi_12S_ALL_shark_txid7777.qza
-#- /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/DataSeq_ncbi_12S_ALL_shark_txid7777.qza
+#- /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/RefTaxo_ncbi_12S_ALL_shark_txid7777.qza
+#- /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/DataSeq_ncbi_12S_ALL_shark_txid7777.qza
 
 export NCBI_API_KEY="b6c27d47994cfeefbb5bf06d760ab2c6db09"
 
@@ -249,11 +249,11 @@ qiime feature-classifier classify-consensus-vsearch \
 
 # from https://www.researchgate.net/publication/349299040_Mitohelper_A_mitochondrial_reference_sequence_analysis_tool_for_fish_eDNA_studies
 # and https://github.com/aomlomics/mitohelper/tree/master/QIIME-compatible
-#scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-seqs.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
-#scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-tax.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+#scp -r /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-seqs.qza /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+#scp -r /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-16S-18S-tax.qza /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
 
-#scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-seqs-derep-uniq.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
-#scp -r /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-tax-derep-uniq.qza /scratch_vol0/fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+#scp -r /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-seqs-derep-uniq.qza /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
+#scp -r /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files/12S-tax-derep-uniq.qza /nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2/taxonomy
 
 
 # qiime feature-classifier fit-classifier-naive-bayes \
