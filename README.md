@@ -26,6 +26,10 @@ For install QIIME2, please refer to http://qiime.org/install/install.html
     sysctl hw.ncpu
     > hw.ncpu: 4
 
+### Run the PacMAN/UNESCO pipeline in local by :
+
+    time nohup bash PacMAN_UNESCO_pipeline.sh &> PacMAN_UNESCO_pipeline.out
+
 ### Run scripts in local by :
 
 
