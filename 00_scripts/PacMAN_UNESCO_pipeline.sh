@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# Script UNESCO eDNA Expeditions - NEW CALEDONIA LAGOON
-# Single-end FASTQ avec 5 marqueurs multiplexés
-# Séparation par marqueur AVANT QIIME2/DADA2
+# Script UNESCO eDNA Expeditions - NEW CALEDONIA LAGOON - VERSION CORRIGÉE
+# Correction: Format TSV pour les manifests (pas CSV)
 
 WORKING_DIRECTORY=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
 DATABASE=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
@@ -13,53 +12,29 @@ cd $WORKING_DIRECTORY
 
 echo "======================================================================="
 echo "UNESCO eDNA EXPEDITIONS - NEW CALEDONIA LAGOON DIVERSITY"
-echo "Séparation des 5 marqueurs depuis FASTQ single-end multiplexés"
+echo "VERSION CORRIGÉE - Manifests au format TSV"
 echo "======================================================================="
 echo ""
-echo "Échantillons: Poe, Kouare, GrandLagonNord, Pouebo, Entrecasteaux"
-echo "Control: SRR29659756"
-echo "Marqueurs: 12S-MiFish, 12S-Mimammal, 12S-Teleo, COI, 16S-Vert"
-echo ""
-
-mkdir -p 01-cutadapt
-mkdir -p 01-cutadapt/logs
-mkdir -p 02-qiime2/by_marker
-mkdir -p 03-dada2
-mkdir -p 04-taxonomy
-mkdir -p export/taxonomy
 
 #################################################################################
 # PRIMERS UNESCO eDNA Expeditions (5 marqueurs)
 #################################################################################
 
-# 12S MiFish-UE (poissons)
 MIFISH_F="GTCGGTAAAACTCGTGCCAGC"
 MIFISH_R="CATAGTGGGGTATCTAATCCCAGTTTG"
-
-# 12S Mimammal-UEB (mammifères marins)
 MIMAMMAL_F="CCAAACTGGGATTAGATACCCCACTAT"
 MIMAMMAL_R="AGAATGAAGGGTAGATGTAAGCTT"
-
-# 12S Teleo (téléostéens)
 TELEO_F="ACACCGCCCGTCACTCT"
 TELEO_R="CTTCCGGTACACTTACCATG"
-
-# COI Leray-Geller (faune diverse)
 COI_F="GGWACWGGWTGAACWGTWTAYCCYCC"
 COI_R="TANACYTCNGGRTGNCCRAARAAYCA"
-
-# 16S Vert-Vences (vertébrés)
 VERT16S_F="AGACGAGAAGACCCTRTG"
 VERT16S_R="GATCCAACATCGAGGTCGTAA"
-
-echo "✓ Primers définis pour les 5 marqueurs"
-echo ""
 
 #################################################################################
 # MÉTADONNÉES ÉCHANTILLONS
 #################################################################################
 
-# Créer un fichier de mapping sample-id -> SRR
 cat > sample_mapping.tsv << 'EOF'
 sample-id	srr
 Poe1	SRR29659654
@@ -84,162 +59,111 @@ Pouebo4	SRR29659902
 Control	SRR29659756
 EOF
 
-echo "✓ Fichier de mapping créé: sample_mapping.tsv"
-echo ""
-
 #################################################################################
-# ÉTAPE 1: SÉPARATION PAR MARQUEUR AVEC CUTADAPT (SINGLE-END)
+# ÉTAPE 1: SÉPARATION PAR MARQUEUR (si pas déjà fait)
 #################################################################################
 
-echo "=== ÉTAPE 1: Séparation des lectures par marqueur ==="
-echo ""
-echo "Note: Vos fichiers sont SINGLE-END avec marqueurs multiplexés"
-echo "Cutadapt va créer un fichier par marqueur pour chaque échantillon"
-echo ""
-
-# Fonction pour séparer un échantillon par marqueur
-separate_sample_by_markers() {
-    local sample_name=$1
-    local srr_id=$2
-    local fastq_file="${RAW_DATA}/${srr_id}.fastq"
+if [ ! -d "01-cutadapt/12S-MiFish" ] || [ -z "$(ls -A 01-cutadapt/12S-MiFish/*.fastq.gz 2>/dev/null)" ]; then
+    echo "=== ÉTAPE 1: Séparation des lectures par marqueur ==="
+    echo ""
     
-    if [ ! -f "$fastq_file" ]; then
-        echo "⚠️  ERREUR: Fichier manquant: $fastq_file"
-        return 1
-    fi
-    
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Traitement: $sample_name ($srr_id)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
-    # Créer les dossiers de sortie par marqueur
     mkdir -p 01-cutadapt/12S-MiFish
     mkdir -p 01-cutadapt/12S-Mimammal
     mkdir -p 01-cutadapt/12S-Teleo
     mkdir -p 01-cutadapt/COI
     mkdir -p 01-cutadapt/16S-Vert
+    mkdir -p 01-cutadapt/logs
     
-    # Séparer chaque marqueur avec cutadapt
-    # Pour single-end, on utilise -g (5' adapter) et -a (3' adapter)
+    separate_sample() {
+        local sample_name=$1
+        local srr_id=$2
+        local fastq_file="${RAW_DATA}/${srr_id}.fastq"
+        
+        if [ ! -f "$fastq_file" ]; then
+            echo "⚠️  Fichier manquant: $fastq_file"
+            return 1
+        fi
+        
+        echo "Traitement: $sample_name ($srr_id)"
+        
+        # 12S MiFish
+        cutadapt -g "$MIFISH_F" -a "$MIFISH_R" --discard-untrimmed --minimum-length 50 --cores 2 \
+            -o "01-cutadapt/12S-MiFish/${sample_name}_12S-MiFish.fastq.gz" "$fastq_file" \
+            > "01-cutadapt/logs/${sample_name}_12S-MiFish.log" 2>&1
+        
+        # 12S Mimammal
+        cutadapt -g "$MIMAMMAL_F" -a "$MIMAMMAL_R" --discard-untrimmed --minimum-length 50 --cores 2 \
+            -o "01-cutadapt/12S-Mimammal/${sample_name}_12S-Mimammal.fastq.gz" "$fastq_file" \
+            > "01-cutadapt/logs/${sample_name}_12S-Mimammal.log" 2>&1
+        
+        # 12S Teleo
+        cutadapt -g "$TELEO_F" -a "$TELEO_R" --discard-untrimmed --minimum-length 50 --cores 2 \
+            -o "01-cutadapt/12S-Teleo/${sample_name}_12S-Teleo.fastq.gz" "$fastq_file" \
+            > "01-cutadapt/logs/${sample_name}_12S-Teleo.log" 2>&1
+        
+        # COI
+        cutadapt -g "$COI_F" -a "$COI_R" --discard-untrimmed --minimum-length 100 --cores 2 \
+            -o "01-cutadapt/COI/${sample_name}_COI.fastq.gz" "$fastq_file" \
+            > "01-cutadapt/logs/${sample_name}_COI.log" 2>&1
+        
+        # 16S Vert
+        cutadapt -g "$VERT16S_F" -a "$VERT16S_R" --discard-untrimmed --minimum-length 100 --cores 2 \
+            -o "01-cutadapt/16S-Vert/${sample_name}_16S-Vert.fastq.gz" "$fastq_file" \
+            > "01-cutadapt/logs/${sample_name}_16S-Vert.log" 2>&1
+    }
     
-    # 12S MiFish
-    cutadapt \
-        -g "$MIFISH_F" \
-        -a "$MIFISH_R" \
-        --discard-untrimmed \
-        --minimum-length 50 \
-        --cores 2 \
-        -o "01-cutadapt/12S-MiFish/${sample_name}_12S-MiFish.fastq.gz" \
-        "$fastq_file" \
-        > "01-cutadapt/logs/${sample_name}_12S-MiFish.log" 2>&1
+    while IFS=$'\t' read -r sample_name srr_id; do
+        if [ "$sample_name" != "sample-id" ]; then
+            separate_sample "$sample_name" "$srr_id"
+        fi
+    done < sample_mapping.tsv
     
-    reads_mifish=$(grep "Reads written" "01-cutadapt/logs/${sample_name}_12S-MiFish.log" | awk '{print $5}' | sed 's/,//g')
-    echo "  12S-MiFish: $reads_mifish reads"
-    
-    # 12S Mimammal
-    cutadapt \
-        -g "$MIMAMMAL_F" \
-        -a "$MIMAMMAL_R" \
-        --discard-untrimmed \
-        --minimum-length 50 \
-        --cores 2 \
-        -o "01-cutadapt/12S-Mimammal/${sample_name}_12S-Mimammal.fastq.gz" \
-        "$fastq_file" \
-        > "01-cutadapt/logs/${sample_name}_12S-Mimammal.log" 2>&1
-    
-    reads_mimammal=$(grep "Reads written" "01-cutadapt/logs/${sample_name}_12S-Mimammal.log" | awk '{print $5}' | sed 's/,//g')
-    echo "  12S-Mimammal: $reads_mimammal reads"
-    
-    # 12S Teleo
-    cutadapt \
-        -g "$TELEO_F" \
-        -a "$TELEO_R" \
-        --discard-untrimmed \
-        --minimum-length 50 \
-        --cores 2 \
-        -o "01-cutadapt/12S-Teleo/${sample_name}_12S-Teleo.fastq.gz" \
-        "$fastq_file" \
-        > "01-cutadapt/logs/${sample_name}_12S-Teleo.log" 2>&1
-    
-    reads_teleo=$(grep "Reads written" "01-cutadapt/logs/${sample_name}_12S-Teleo.log" | awk '{print $5}' | sed 's/,//g')
-    echo "  12S-Teleo: $reads_teleo reads"
-    
-    # COI
-    cutadapt \
-        -g "$COI_F" \
-        -a "$COI_R" \
-        --discard-untrimmed \
-        --minimum-length 100 \
-        --cores 2 \
-        -o "01-cutadapt/COI/${sample_name}_COI.fastq.gz" \
-        "$fastq_file" \
-        > "01-cutadapt/logs/${sample_name}_COI.log" 2>&1
-    
-    reads_coi=$(grep "Reads written" "01-cutadapt/logs/${sample_name}_COI.log" | awk '{print $5}' | sed 's/,//g')
-    echo "  COI: $reads_coi reads"
-    
-    # 16S Vert
-    cutadapt \
-        -g "$VERT16S_F" \
-        -a "$VERT16S_R" \
-        --discard-untrimmed \
-        --minimum-length 100 \
-        --cores 2 \
-        -o "01-cutadapt/16S-Vert/${sample_name}_16S-Vert.fastq.gz" \
-        "$fastq_file" \
-        > "01-cutadapt/logs/${sample_name}_16S-Vert.log" 2>&1
-    
-    reads_16s=$(grep "Reads written" "01-cutadapt/logs/${sample_name}_16S-Vert.log" | awk '{print $5}' | sed 's/,//g')
-    echo "  16S-Vert: $reads_16s reads"
-    
-    echo ""
-}
-
-# Traiter tous les échantillons
-while IFS=$'\t' read -r sample_name srr_id; do
-    if [ "$sample_name" != "sample-id" ]; then
-        separate_sample_by_markers "$sample_name" "$srr_id"
-    fi
-done < sample_mapping.tsv
-
-echo "✓ Séparation par marqueur terminée pour tous les échantillons"
+    echo "✓ Séparation terminée"
+else
+    echo "✓ Séparation déjà effectuée (skip)"
+fi
 echo ""
 
 #################################################################################
-# ÉTAPE 2: IMPORT QIIME2 PAR MARQUEUR (SINGLE-END)
+# ÉTAPE 2: IMPORT QIIME2 - FORMAT TSV CORRIGÉ
 #################################################################################
 
-echo "=== ÉTAPE 2: Import QIIME2 par marqueur ==="
+echo "=== ÉTAPE 2: Import QIIME2 par marqueur (format TSV) ==="
 echo ""
 
-import_marker_single_end() {
+mkdir -p 02-qiime2/by_marker
+
+import_marker_corrected() {
     local marker_name=$1
     local marker_dir=$2
     
     echo "--- Import QIIME2: $marker_name ---"
     
-    # Créer un manifest pour ce marqueur
-    manifest_file="02-qiime2/by_marker/manifest_${marker_name}.csv"
+    # CORRECTION: Créer un manifest au format TSV (tabulations)
+    manifest_file="02-qiime2/by_marker/manifest_${marker_name}.tsv"
     
-    echo "sample-id,absolute-filepath" > "$manifest_file"
+    # Header avec TABULATION
+    printf "sample-id\tabsolute-filepath\n" > "$manifest_file"
     
+    # Parcourir les fichiers FASTQ
     for fastq_file in ${marker_dir}/*.fastq.gz; do
         if [ -f "$fastq_file" ]; then
-            # Extraire le nom de l'échantillon
             base_name=$(basename "$fastq_file" "_${marker_name}.fastq.gz")
-            
-            # Chemin absolu requis par QIIME2
             abs_path=$(realpath "$fastq_file")
             
-            echo "${base_name},${abs_path}" >> "$manifest_file"
+            # Ajouter avec TABULATION
+            printf "%s\t%s\n" "$base_name" "$abs_path" >> "$manifest_file"
         fi
     done
     
-    # Compter les échantillons
     sample_count=$(($(wc -l < "$manifest_file") - 1))
-    echo "  ✓ Manifest créé: $sample_count échantillons"
+    echo "  ✓ Manifest TSV créé: $sample_count échantillons"
     
-    # Import dans QIIME2 (SINGLE-END)
+    # Vérifier le format du manifest
+    echo "  Aperçu du manifest:"
+    head -3 "$manifest_file" | cat -A  # cat -A montre les tabs
+    
+    # Import dans QIIME2
     if [ ! -f "02-qiime2/by_marker/demux_${marker_name}.qza" ]; then
         conda run -n $QIIME_ENV qiime tools import \
             --type 'SampleData[SequencesWithQuality]' \
@@ -247,7 +171,12 @@ import_marker_single_end() {
             --output-path "02-qiime2/by_marker/demux_${marker_name}.qza" \
             --input-format SingleEndFastqManifestPhred33V2
         
-        echo "  ✓ Import QIIME2 terminé: demux_${marker_name}.qza"
+        if [ $? -eq 0 ]; then
+            echo "  ✓ Import QIIME2 réussi: demux_${marker_name}.qza"
+        else
+            echo "  ❌ ERREUR lors de l'import QIIME2"
+            return 1
+        fi
     else
         echo "  ✓ Import existe déjà: demux_${marker_name}.qza"
     fi
@@ -255,20 +184,22 @@ import_marker_single_end() {
     echo ""
 }
 
-import_marker_single_end "12S-MiFish" "01-cutadapt/12S-MiFish"
-import_marker_single_end "12S-Mimammal" "01-cutadapt/12S-Mimammal"
-import_marker_single_end "12S-Teleo" "01-cutadapt/12S-Teleo"
-import_marker_single_end "COI" "01-cutadapt/COI"
-import_marker_single_end "16S-Vert" "01-cutadapt/16S-Vert"
+import_marker_corrected "12S-MiFish" "01-cutadapt/12S-MiFish"
+import_marker_corrected "12S-Mimammal" "01-cutadapt/12S-Mimammal"
+import_marker_corrected "12S-Teleo" "01-cutadapt/12S-Teleo"
+import_marker_corrected "COI" "01-cutadapt/COI"
+import_marker_corrected "16S-Vert" "01-cutadapt/16S-Vert"
 
 #################################################################################
-# ÉTAPE 3: DENOISING DADA2 PAR MARQUEUR (SINGLE-END)
+# ÉTAPE 3: DADA2 PAR MARQUEUR
 #################################################################################
 
-echo "=== ÉTAPE 3: DADA2 denoising par marqueur (single-end) ==="
+echo "=== ÉTAPE 3: DADA2 denoising par marqueur ==="
 echo ""
 
-run_dada2_single_end() {
+mkdir -p 03-dada2
+
+run_dada2_single() {
     local marker_name=$1
     local demux_file=$2
     local trim_left=$3
@@ -278,6 +209,12 @@ run_dada2_single_end() {
     echo "DADA2: $marker_name"
     echo "Paramètres: trim-left=$trim_left, trunc-len=$trunc_len"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    if [ ! -f "$demux_file" ]; then
+        echo "  ❌ ERREUR: Fichier demux manquant: $demux_file"
+        echo "  L'import QIIME2 a échoué pour ce marqueur"
+        return 1
+    fi
     
     if [ ! -f "03-dada2/table_${marker_name}.qza" ]; then
         conda run -n $QIIME_ENV qiime dada2 denoise-single \
@@ -289,12 +226,17 @@ run_dada2_single_end() {
             --o-representative-sequences "03-dada2/rep_seqs_${marker_name}.qza" \
             --o-denoising-stats "03-dada2/stats_${marker_name}.qza"
         
-        echo "  ✓ DADA2 terminé pour $marker_name"
-        
-        # Exporter les stats
-        conda run -n $QIIME_ENV qiime metadata tabulate \
-            --m-input-file "03-dada2/stats_${marker_name}.qza" \
-            --o-visualization "03-dada2/stats_${marker_name}.qzv"
+        if [ $? -eq 0 ]; then
+            echo "  ✓ DADA2 terminé pour $marker_name"
+            
+            # Stats
+            conda run -n $QIIME_ENV qiime metadata tabulate \
+                --m-input-file "03-dada2/stats_${marker_name}.qza" \
+                --o-visualization "03-dada2/stats_${marker_name}.qzv"
+        else
+            echo "  ❌ ERREUR DADA2 pour $marker_name"
+            return 1
+        fi
     else
         echo "  ✓ DADA2 existe déjà pour $marker_name"
     fi
@@ -302,20 +244,21 @@ run_dada2_single_end() {
     echo ""
 }
 
-# Paramètres DADA2 optimisés par marqueur (single-end)
-# À ajuster selon la qualité de vos lectures
-run_dada2_single_end "12S-MiFish" "02-qiime2/by_marker/demux_12S-MiFish.qza" 0 220
-run_dada2_single_end "12S-Mimammal" "02-qiime2/by_marker/demux_12S-Mimammal.qza" 0 220
-run_dada2_single_end "12S-Teleo" "02-qiime2/by_marker/demux_12S-Teleo.qza" 0 220
-run_dada2_single_end "COI" "02-qiime2/by_marker/demux_COI.qza" 0 250
-run_dada2_single_end "16S-Vert" "02-qiime2/by_marker/demux_16S-Vert.qza" 0 240
+run_dada2_single "12S-MiFish" "02-qiime2/by_marker/demux_12S-MiFish.qza" 0 220
+run_dada2_single "12S-Mimammal" "02-qiime2/by_marker/demux_12S-Mimammal.qza" 0 220
+run_dada2_single "12S-Teleo" "02-qiime2/by_marker/demux_12S-Teleo.qza" 0 220
+run_dada2_single "COI" "02-qiime2/by_marker/demux_COI.qza" 0 250
+run_dada2_single "16S-Vert" "02-qiime2/by_marker/demux_16S-Vert.qza" 0 240
 
 #################################################################################
-# ÉTAPE 4: ASSIGNATION TAXONOMIQUE PAR MARQUEUR
+# ÉTAPE 4: ASSIGNATION TAXONOMIQUE
 #################################################################################
 
-echo "=== ÉTAPE 4: Assignation taxonomique spécifique par marqueur ==="
+echo "=== ÉTAPE 4: Assignation taxonomique par marqueur ==="
 echo ""
+
+mkdir -p 04-taxonomy
+mkdir -p export/taxonomy
 
 assign_taxonomy() {
     local marker_name=$1
@@ -327,10 +270,15 @@ assign_taxonomy() {
     echo "Assignation taxonomique: $marker_name"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
+    if [ ! -f "$rep_seqs_file" ]; then
+        echo "  ❌ ERREUR: Fichier rep-seqs manquant: $rep_seqs_file"
+        echo "  DADA2 n'a pas fonctionné pour ce marqueur"
+        return 1
+    fi
+    
     if [ ! -f "$DATABASE/$classifier" ]; then
-        echo "⚠️  ERREUR: Classificateur manquant: $DATABASE/$classifier"
-        echo "   Vous devez d'abord créer les bases de données marines"
-        echo "   Lancez d'abord: qiime2_complete_v2.sh"
+        echo "  ⚠️  ERREUR: Classificateur manquant: $DATABASE/$classifier"
+        echo "  Vous devez d'abord créer les bases de données marines"
         return 1
     fi
     
@@ -355,15 +303,12 @@ assign_taxonomy() {
     if [ -f "export/taxonomy/${output_name}.tsv" ]; then
         local total=$(($(wc -l < "export/taxonomy/${output_name}.tsv") - 2))
         local species=$(grep -c ";s__" "export/taxonomy/${output_name}.tsv" 2>/dev/null || echo 0)
-        local genus=$(grep -c ";g__" "export/taxonomy/${output_name}.tsv" 2>/dev/null || echo 0)
         
         echo "  ✓ ASVs assignés: $total"
         echo "  ✓ Niveau espèce: $species"
-        echo "  ✓ Niveau genre: $genus"
         echo "  ✓ Fichier: export/taxonomy/${output_name}.tsv"
-        
         echo ""
-        echo "  Aperçu des résultats:"
+        echo "  Aperçu:"
         head -5 "export/taxonomy/${output_name}.tsv" | tail -3
     fi
     
@@ -376,41 +321,12 @@ assign_taxonomy "12S-Teleo" "03-dada2/rep_seqs_12S-Teleo.qza" "teleo_marine_12s_
 assign_taxonomy "COI" "03-dada2/rep_seqs_COI.qza" "coi_marine_classifier.qza" "taxonomy_CO1"
 assign_taxonomy "16S-Vert" "03-dada2/rep_seqs_16S-Vert.qza" "vert_marine_16s_classifier.qza" "taxonomy_16S"
 
-#################################################################################
-# RÉSUMÉ FINAL
-#################################################################################
-
 echo ""
 echo "======================================================================="
-echo "✓ PIPELINE UNESCO eDNA EXPEDITIONS - NEW CALEDONIA TERMINÉ"
+echo "✓ PIPELINE TERMINÉ"
 echo "======================================================================="
 echo ""
-echo "Sites échantillonnés:"
-echo "  - Poe (Récif barrière Sud-Ouest)"
-echo "  - Kouaré (Récif intermédiaire Nord)"
-echo "  - Grand Lagon Nord"
-echo "  - Pouébo (Nord-Est)"
-echo "  - Entrecasteaux (Récif Sud)"
-echo ""
-echo "Fichiers créés:"
-echo "  - 01-cutadapt/: Lectures séparées par marqueur (20 échantillons × 5 marqueurs)"
-echo "  - 02-qiime2/by_marker/: Fichiers QIIME2 par marqueur"
-echo "  - 03-dada2/: Tables ASV et séquences représentatives par marqueur"
-echo "  - 04-taxonomy/: Taxonomies assignées par marqueur"
-echo "  - export/taxonomy/*.tsv: Fichiers TSV finaux"
-echo ""
-echo "Nombre total d'échantillons: 20 (19 + 1 control)"
-echo ""
-echo "AVANTAGES de cette approche:"
-echo "  ✓ Séparation propre dès les lectures brutes single-end"
-echo "  ✓ Pas de confusion entre marqueurs"
-echo "  ✓ DADA2 optimisé pour chaque amplicon"
-echo "  ✓ Assignation taxonomique cohérente et spécifique"
-echo "  ✓ Méthode UNESCO pour récifs coralliens Nouvelle-Calédonie"
-echo ""
-echo "Prochaines étapes suggérées:"
-echo "  1. Vérifier les stats DADA2: 03-dada2/stats_*.qzv"
-echo "  2. Analyser les taxonomies: export/taxonomy/*.tsv"
-echo "  3. Comparer les sites (diversité alpha/beta)"
-echo "  4. Identifier les espèces endémiques de Nouvelle-Calédonie"
+echo "Vérifiez les résultats dans:"
+echo "  - 03-dada2/stats_*.qzv (ouvrir sur https://view.qiime2.org)"
+echo "  - export/taxonomy/*.tsv (fichiers de taxonomie finaux)"
 echo ""
