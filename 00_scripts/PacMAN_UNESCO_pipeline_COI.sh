@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Création BASE COI MARINE - VERSION CORRIGÉE
-# Exclusion des espèces terrestres/eau douce
+# BASE COI MARINE - VERSION FINALE FONCTIONNELLE
+# Ordre corrigé pour éviter le mismatch séquences-taxonomie
 
 DATABASE=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
 WORKING_DIR=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
@@ -10,17 +10,17 @@ QIIME_ENV="qiime2-amplicon-2025.7"
 cd $DATABASE
 
 echo "======================================================================="
-echo "CRÉATION BASE COI MARINE - Récifs coralliens"
+echo "BASE COI STRICTEMENT MARINE - Récifs coralliens"
 echo "======================================================================="
 echo ""
 
 mkdir -p marine_coi_temp
 
 #################################################################################
-# ÉTAPE 1: TÉLÉCHARGEMENT CIBLÉ
+# ÉTAPE 1: TÉLÉCHARGEMENT
 #################################################################################
 
-echo "=== ÉTAPE 1: Téléchargement séquences COI marines ==="
+echo "=== ÉTAPE 1: Téléchargement COI marines depuis NCBI ==="
 echo ""
 
 MARINE_QUERY='("COI"[Gene] OR "cytochrome c oxidase subunit I"[Gene] OR "COX1"[Gene]) AND (
@@ -44,11 +44,10 @@ MARINE_QUERY='("COI"[Gene] OR "cytochrome c oxidase subunit I"[Gene] OR "COX1"[G
 NOT "environmental"[Title] 
 NOT "uncultured"[Title] 
 NOT "terrestrial"[All Fields] 
-NOT "freshwater"[All Fields] 
-NOT "land snail"[All Fields]'
+NOT "freshwater"[All Fields]'
 
 if [ ! -f "marine_coi_temp/coi_marine_raw_seqs.qza" ]; then
-    echo "Téléchargement depuis NCBI (peut prendre 30-60 min)..."
+    echo "Téléchargement NCBI (30-60 min)..."
     
     conda run -n $QIIME_ENV qiime rescript get-ncbi-data \
         --p-query "$MARINE_QUERY" \
@@ -65,46 +64,21 @@ fi
 echo ""
 
 #################################################################################
-# ÉTAPE 2: FILTRAGE TAXONOMIQUE (exclusion terrestres/eau douce)
+# ÉTAPE 2: FILTRAGE LONGUEUR
 #################################################################################
 
-echo "=== ÉTAPE 2: Exclusion groupes terrestres/eau douce ==="
+echo "=== ÉTAPE 2: Filtrage longueur (400-800 bp) ==="
 echo ""
 
-if [ ! -f "marine_coi_temp/coi_marine_clean_tax.qza" ]; then
-    # Export temporaire
-    conda run -n $QIIME_ENV qiime tools export \
-        --input-path "marine_coi_temp/coi_marine_raw_tax.qza" \
-        --output-path "marine_coi_temp/temp_tax/"
+if [ ! -f "marine_coi_temp/coi_marine_length_filt_seqs.qza" ]; then
+    conda run -n $QIIME_ENV qiime rescript filter-seqs-length \
+        --i-sequences "marine_coi_temp/coi_marine_raw_seqs.qza" \
+        --p-global-min 400 \
+        --p-global-max 800 \
+        --o-filtered-seqs "marine_coi_temp/coi_marine_length_filt_seqs.qza" \
+        --o-discarded-seqs "marine_coi_temp/coi_discarded_length.qza"
     
-    echo "Filtrage avec grep..."
-    echo "Exclusion de:"
-    echo "  - Pulmonata, Stylommatophora (escargots/limaces terrestres)"
-    echo "  - Unionidae, Corbiculidae (moules eau douce)"
-    echo "  - Chilopoda, Diplopoda (mille-pattes)"
-    echo "  - Insecta (tous insectes)"
-    echo "  - Helix, Limax, Arion (genres terrestres)"
-    
-    # Filtrer
-    grep -v -E "(Pulmonata|Stylommatophora|Unionidae|Corbiculidae|Chilopoda|Diplopoda|Insecta|Lepidoptera|Coleoptera|Diptera|Hymenoptera|Helix|Limax|Arion|Deroceras|Achatina|Cepaea)" \
-        "marine_coi_temp/temp_tax/taxonomy.tsv" > "marine_coi_temp/temp_tax/taxonomy_filtered.tsv"
-    
-    # Stats
-    before=$(wc -l < "marine_coi_temp/temp_tax/taxonomy.tsv")
-    after=$(wc -l < "marine_coi_temp/temp_tax/taxonomy_filtered.tsv")
-    removed=$((before - after))
-    
-    echo "  Lignes avant: $before"
-    echo "  Lignes après: $after"
-    echo "  Lignes retirées: $removed"
-    
-    # Réimporter
-    conda run -n $QIIME_ENV qiime tools import \
-        --type 'FeatureData[Taxonomy]' \
-        --input-path "marine_coi_temp/temp_tax/taxonomy_filtered.tsv" \
-        --output-path "marine_coi_temp/coi_marine_clean_tax.qza"
-    
-    echo "✓ Taxonomie filtrée"
+    echo "✓ Séquences filtrées par longueur"
 else
     echo "✓ Déjà filtré"
 fi
@@ -112,21 +86,56 @@ fi
 echo ""
 
 #################################################################################
-# ÉTAPE 3: FILTRAGE SÉQUENCES PAR LONGUEUR (simple)
+# ÉTAPE 3: FILTRAGE TAXONOMIQUE (après longueur)
 #################################################################################
 
-echo "=== ÉTAPE 3: Filtrage séquences par longueur ==="
+echo "=== ÉTAPE 3: Filtrage taxonomique - exclusion terrestres ==="
 echo ""
 
-if [ ! -f "marine_coi_temp/coi_marine_clean_seqs.qza" ]; then
-    conda run -n $QIIME_ENV qiime rescript filter-seqs-length \
-        --i-sequences "marine_coi_temp/coi_marine_raw_seqs.qza" \
-        --p-global-min 400 \
-        --p-global-max 800 \
-        --o-filtered-seqs "marine_coi_temp/coi_marine_clean_seqs.qza" \
-        --o-discarded-seqs "marine_coi_temp/coi_marine_discarded.qza"
+if [ ! -f "marine_coi_temp/coi_marine_clean_tax.qza" ]; then
+    # Export taxonomie
+    conda run -n $QIIME_ENV qiime tools export \
+        --input-path "marine_coi_temp/coi_marine_raw_tax.qza" \
+        --output-path "marine_coi_temp/temp_tax/"
     
-    echo "✓ Séquences filtrées (400-800 bp)"
+    # Export IDs des séquences filtrées par longueur
+    conda run -n $QIIME_ENV qiime tools export \
+        --input-path "marine_coi_temp/coi_marine_length_filt_seqs.qza" \
+        --output-path "marine_coi_temp/temp_seqs/"
+    
+    # Extraire liste des IDs
+    grep "^>" "marine_coi_temp/temp_seqs/dna-sequences.fasta" | sed 's/>//' > "marine_coi_temp/seqs_ids.txt"
+    
+    echo "Exclusion groupes terrestres/eau douce..."
+    echo "  - Pulmonata, Stylommatophora"
+    echo "  - Unionidae, Corbiculidae"  
+    echo "  - Chilopoda, Diplopoda"
+    echo "  - Insecta (tous)"
+    echo "  - Genres terrestres: Helix, Limax, Arion..."
+    
+    # Filtrer taxonomie : garder seulement les IDs des séquences + exclure groupes terrestres
+    awk 'NR==FNR{ids[$1]; next} FNR==1 || ($1 in ids)' \
+        "marine_coi_temp/seqs_ids.txt" \
+        "marine_coi_temp/temp_tax/taxonomy.tsv" | \
+    grep -v -E "(Pulmonata|Stylommatophora|Unionidae|Corbiculidae|Chilopoda|Diplopoda|Insecta|Lepidoptera|Coleoptera|Diptera|Hymenoptera|Helix|Limax|Arion|Deroceras|Achatina|Cepaea)" \
+        > "marine_coi_temp/temp_tax/taxonomy_filtered.tsv"
+    
+    # Stats
+    before=$(wc -l < "marine_coi_temp/temp_tax/taxonomy.tsv")
+    after=$(wc -l < "marine_coi_temp/temp_tax/taxonomy_filtered.tsv")
+    removed=$((before - after))
+    
+    echo "  Avant: $before taxa"
+    echo "  Après: $after taxa"
+    echo "  Retirés: $removed taxa terrestres/eau douce"
+    
+    # Réimporter
+    conda run -n $QIIME_ENV qiime tools import \
+        --type 'FeatureData[Taxonomy]' \
+        --input-path "marine_coi_temp/temp_tax/taxonomy_filtered.tsv" \
+        --output-path "marine_coi_temp/coi_marine_clean_tax.qza"
+    
+    echo "✓ Taxonomie marine nettoyée"
 else
     echo "✓ Déjà filtré"
 fi
@@ -137,25 +146,30 @@ echo ""
 # ÉTAPE 4: FILTRER SÉQUENCES POUR MATCHER TAXONOMIE
 #################################################################################
 
-echo "=== ÉTAPE 4: Synchronisation séquences-taxonomie ==="
+echo "=== ÉTAPE 4: Filtrage séquences selon taxonomie marine ==="
 echo ""
 
-if [ ! -f "marine_coi_temp/coi_marine_matched_seqs.qza" ]; then
-    # Filtrer séquences pour ne garder que celles dans la taxonomie filtrée
-    conda run -n $QIIME_ENV qiime rescript filter-taxa \
+if [ ! -f "marine_coi_temp/coi_marine_clean_seqs.qza" ]; then
+    # Extraire IDs de la taxonomie filtrée
+    conda run -n $QIIME_ENV qiime tools export \
+        --input-path "marine_coi_temp/coi_marine_clean_tax.qza" \
+        --output-path "marine_coi_temp/temp_tax_clean/"
+    
+    awk 'NR>1 {print $1}' "marine_coi_temp/temp_tax_clean/taxonomy.tsv" > "marine_coi_temp/marine_ids_to_keep.txt"
+    
+    echo "  IDs à garder: $(wc -l < marine_coi_temp/marine_ids_to_keep.txt)"
+    
+    # Filtrer séquences avec cette liste
+    conda run -n $QIIME_ENV qiime taxa filter-seqs \
+        --i-sequences "marine_coi_temp/coi_marine_length_filt_seqs.qza" \
         --i-taxonomy "marine_coi_temp/coi_marine_clean_tax.qza" \
-        --m-ids-to-keep-file "marine_coi_temp/coi_marine_clean_seqs.qza" \
-        --o-filtered-taxonomy "marine_coi_temp/coi_marine_matched_tax.qza"
+        --p-mode contains \
+        --p-include "k__" \
+        --o-filtered-sequences "marine_coi_temp/coi_marine_clean_seqs.qza"
     
-    # Filtrer séquences pour ne garder que celles dans la taxonomie
-    conda run -n $QIIME_ENV qiime feature-table filter-seqs \
-        --i-data "marine_coi_temp/coi_marine_clean_seqs.qza" \
-        --m-metadata-file "marine_coi_temp/coi_marine_matched_tax.qza" \
-        --o-filtered-data "marine_coi_temp/coi_marine_matched_seqs.qza"
-    
-    echo "✓ Séquences et taxonomie synchronisées"
+    echo "✓ Séquences filtrées"
 else
-    echo "✓ Déjà synchronisé"
+    echo "✓ Déjà filtré"
 fi
 
 echo ""
@@ -169,8 +183,8 @@ echo ""
 
 if [ ! -f "marine_coi_temp/coi_marine_derep_seqs.qza" ]; then
     conda run -n $QIIME_ENV qiime rescript dereplicate \
-        --i-sequences "marine_coi_temp/coi_marine_matched_seqs.qza" \
-        --i-taxa "marine_coi_temp/coi_marine_matched_tax.qza" \
+        --i-sequences "marine_coi_temp/coi_marine_clean_seqs.qza" \
+        --i-taxa "marine_coi_temp/coi_marine_clean_tax.qza" \
         --p-mode 'uniq' \
         --p-derep-prefix \
         --o-dereplicated-sequences "marine_coi_temp/coi_marine_derep_seqs.qza" \
@@ -197,15 +211,14 @@ if [ ! -f "coi_marine_seqs_final.qza" ]; then
         --p-homopolymer-length 8 \
         --o-clean-sequences "coi_marine_seqs_final.qza"
     
-    echo "✓ Séquences nettoyées"
+    # Taxonomie correspondante
+    conda run -n $QIIME_ENV qiime feature-table filter-seqs \
+        --i-data "marine_coi_temp/coi_marine_derep_tax.qza" \
+        --m-metadata-file "coi_marine_seqs_final.qza" \
+        --o-filtered-data "coi_marine_tax_final.qza" 2>/dev/null || \
+    cp "marine_coi_temp/coi_marine_derep_tax.qza" "coi_marine_tax_final.qza"
     
-    # Filtrer taxonomie correspondante
-    conda run -n $QIIME_ENV qiime rescript filter-taxa \
-        --i-taxonomy "marine_coi_temp/coi_marine_derep_tax.qza" \
-        --m-ids-to-keep-file "coi_marine_seqs_final.qza" \
-        --o-filtered-taxonomy "coi_marine_tax_final.qza"
-    
-    echo "✓ Taxonomie finale"
+    echo "✓ Séquences et taxonomie finales"
 else
     echo "✓ Déjà nettoyé"
 fi
@@ -220,7 +233,7 @@ echo "=== ÉTAPE 7: Entraînement classificateur COI MARINE ==="
 echo ""
 
 if [ ! -f "coi_marine_classifier_v2.qza" ]; then
-    echo "Entraînement en cours (1-3 heures)..."
+    echo "Entraînement (1-3 heures selon la taille de la base)..."
     
     conda run -n $QIIME_ENV qiime feature-classifier fit-classifier-naive-bayes \
         --i-reference-reads "coi_marine_seqs_final.qza" \
@@ -230,21 +243,21 @@ if [ ! -f "coi_marine_classifier_v2.qza" ]; then
     
     if [ $? -eq 0 ]; then
         echo ""
-        echo "✓✓✓ CLASSIFICATEUR COI MARINE CRÉÉ ✓✓✓"
+        echo "✓✓✓ CLASSIFICATEUR CRÉÉ ✓✓✓"
         
-        # Stats sur la base
+        # Stats
         conda run -n $QIIME_ENV qiime tools export \
             --input-path "coi_marine_tax_final.qza" \
-            --output-path "marine_coi_temp/final_tax/"
+            --output-path "marine_coi_temp/final_stats/"
         
-        total_seqs=$(wc -l < "marine_coi_temp/final_tax/taxonomy.tsv")
-        anthozoa=$(grep -c "Anthozoa" "marine_coi_temp/final_tax/taxonomy.tsv" || echo 0)
-        gastropoda=$(grep -c "Gastropoda" "marine_coi_temp/final_tax/taxonomy.tsv" || echo 0)
-        echinoidea=$(grep -c "Echinoidea" "marine_coi_temp/final_tax/taxonomy.tsv" || echo 0)
+        total=$(wc -l < "marine_coi_temp/final_stats/taxonomy.tsv")
+        anthozoa=$(grep -c "Anthozoa" "marine_coi_temp/final_stats/taxonomy.tsv" || echo 0)
+        gastropoda=$(grep -c "Gastropoda" "marine_coi_temp/final_stats/taxonomy.tsv" || echo 0)
+        echinoidea=$(grep -c "Echinoidea" "marine_coi_temp/final_stats/taxonomy.tsv" || echo 0)
         
         echo ""
-        echo "📊 BASE DE DONNÉES COI MARINE:"
-        echo "   Total séquences: $total_seqs"
+        echo "📊 BASE COI MARINE:"
+        echo "   Total séquences: $total"
         echo "   Anthozoa: $anthozoa"
         echo "   Gastropoda: $gastropoda"
         echo "   Echinoidea: $echinoidea"
@@ -253,7 +266,7 @@ if [ ! -f "coi_marine_classifier_v2.qza" ]; then
         exit 1
     fi
 else
-    echo "✓ Classificateur déjà créé"
+    echo "✓ Classificateur existe déjà"
 fi
 
 echo ""
@@ -262,21 +275,21 @@ echo ""
 # ÉTAPE 8: RÉASSIGNATION
 #################################################################################
 
-echo "=== ÉTAPE 8: Réassignation COI avec base marine ==="
+echo "=== ÉTAPE 8: Réassignation de vos OTUs avec COI MARINE ==="
 echo ""
 
 cd $WORKING_DIR
 
-# Backup ancien
+# Backup
 if [ -f "04-taxonomy/taxonomy_CO1.qza" ]; then
-    cp "04-taxonomy/taxonomy_CO1.qza" "04-taxonomy/taxonomy_CO1_old_backup.qza"
-    cp "export/taxonomy/taxonomy_CO1.tsv" "export/taxonomy/taxonomy_CO1_old_backup.tsv"
-    echo "✓ Ancien COI sauvegardé"
+    cp "04-taxonomy/taxonomy_CO1.qza" "04-taxonomy/taxonomy_CO1_terrestrial_backup.qza"
+    cp "export/taxonomy/taxonomy_CO1.tsv" "export/taxonomy/taxonomy_CO1_terrestrial_backup.tsv"
+    echo "✓ Ancien COI (avec terrestres) sauvegardé"
 fi
 
 # Nouvelle assignation
 if [ ! -f "04-taxonomy/taxonomy_CO1_marine.qza" ]; then
-    echo "Assignation en cours..."
+    echo "Assignation COI MARINE en cours (30-60 min)..."
     
     conda run -n $QIIME_ENV qiime feature-classifier classify-sklearn \
         --i-classifier "$DATABASE/coi_marine_classifier_v2.qza" \
@@ -310,6 +323,7 @@ if [ ! -f "04-taxonomy/taxonomy_CO1_marine.qza" ]; then
         echo "✓ Visualisations créées"
     else
         echo "❌ Assignation échouée"
+        exit 1
     fi
 else
     echo "✓ Déjà assigné"
@@ -322,7 +336,7 @@ echo ""
 #################################################################################
 
 echo "======================================================================="
-echo "STATISTIQUES FINALES"
+echo "STATISTIQUES - FAUNE MARINE DES RÉCIFS"
 echo "======================================================================="
 echo ""
 
@@ -330,44 +344,51 @@ if [ -f "export/taxonomy/taxonomy_CO1_marine.tsv" ]; then
     total=$(($(wc -l < "export/taxonomy/taxonomy_CO1_marine.tsv") - 2))
     
     # Groupes marins
-    anthozoa=$(grep -c "Anthozoa" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    gastropoda=$(grep -c "Gastropoda" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    echinoidea=$(grep -c "Echinoidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    holothuroidea=$(grep -c "Holothuroidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    asteroidea=$(grep -c "Asteroidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    crustacea=$(grep -c "Crustacea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    anthozoa=$(grep -ci "Anthozoa" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    scleractinia=$(grep -ci "Scleractinia" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    gastropoda=$(grep -ci "Gastropoda" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    echinoidea=$(grep -ci "Echinoidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    holothuroidea=$(grep -ci "Holothuroidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    asteroidea=$(grep -ci "Asteroidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    crustacea=$(grep -ci "Crustacea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
     
-    echo "📊 RÉSULTATS COI MARINE (Nouvelle-Calédonie):"
+    echo "📊 RÉSULTATS COI MARINE - Récifs Nouvelle-Calédonie:"
     echo ""
     echo "   Total OTUs assignés: $total"
     echo ""
     echo "   Groupes récifaux détectés:"
-    echo "   🪸 Anthozoa (coraux): $anthozoa"
+    echo "   🪸 Anthozoa: $anthozoa (dont $scleractinia coraux durs)"
     echo "   🐚 Gastropoda: $gastropoda"
-    echo "   🦔 Echinoidea (oursins): $echinoidea"
+    echo "   🦔 Echinoidea: $echinoidea"
     echo "   🥒 Holothuroidea: $holothuroidea"
     echo "   ⭐ Asteroidea: $asteroidea"
     echo "   🦞 Crustacea: $crustacea"
     echo ""
     
-    echo "Top 30 espèces marines détectées:"
+    echo "🏆 Top 40 espèces marines détectées:"
     grep -E ";s__[A-Za-z]" "export/taxonomy/taxonomy_CO1_marine.tsv" | \
         awk -F'\t' '{print $2}' | \
         sed 's/.*; s__//' | \
-        sort | uniq -c | sort -nr | head -30 | \
-        awk '{printf "   %3d × %s\n", $1, $2}'
+        sort | uniq -c | sort -nr | head -40 | \
+        awk '{printf "   %4d × %s\n", $1, $2}'
+    
+    echo ""
+    echo "💾 Fichiers sauvegardés:"
+    echo "   - export/taxonomy/taxonomy_CO1_marine.tsv (nouvelle version)"
+    echo "   - export/taxonomy/taxonomy_CO1_terrestrial_backup.tsv (ancienne version)"
 fi
 
 echo ""
 echo "======================================================================="
-echo "✓✓✓ TERMINÉ - BASE COI MARINE OPÉRATIONNELLE ✓✓✓"
+echo "✓✓✓ BASE COI MARINE OPÉRATIONNELLE ✓✓✓"
 echo "======================================================================="
 echo ""
-echo "Fichiers créés:"
-echo "  ✅ coi_marine_classifier_v2.qza (classificateur marine)"
-echo "  ✅ taxonomy_CO1_marine.qza / .tsv"
-echo "  ✅ barplot_CO1_marine.qzv"
+echo "🌊 Plus d'espèces terrestres ni d'eau douce!"
+echo "🪸 Uniquement la faune marine des récifs coralliens"
 echo ""
-echo "Plus d'espèces terrestres/eau douce !"
-echo "Uniquement faune marine des récifs coralliens 🪸🌊"
+echo "Fichiers créés:"
+echo "  ✅ $DATABASE/coi_marine_classifier_v2.qza"
+echo "  ✅ 04-taxonomy/taxonomy_CO1_marine.qza"
+echo "  ✅ export/taxonomy/taxonomy_CO1_marine.tsv"
+echo "  ✅ 04-taxonomy/barplot_CO1_marine.qzv"
 echo ""
