@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# BASE COI MARINE - VERSION ULTRA-SIMPLIFIÉE
-# Skip dereplication (non critique) pour éviter les erreurs
+# BASE COI MARINE - VERSION MINIMALE QUI FONCTIONNE
+# Utilise seqs brutes + tax filtrée directement
 
 DATABASE=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/98_database_files
 WORKING_DIR=/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/05_QIIME2
@@ -10,11 +10,11 @@ QIIME_ENV="qiime2-amplicon-2025.7"
 cd $DATABASE
 
 echo "======================================================================="
-echo "BASE COI MARINE - Version simplifiée qui fonctionne"
+echo "BASE COI MARINE - Version minimale fonctionnelle"
 echo "======================================================================="
 echo ""
 
-mkdir -p marine_coi_simple
+mkdir -p marine_coi_minimal
 
 #################################################################################
 # ÉTAPE 1: TÉLÉCHARGEMENT
@@ -35,15 +35,15 @@ NOT "environmental"
 NOT "terrestrial" 
 NOT "freshwater"'
 
-if [ ! -f "marine_coi_simple/seqs_raw.qza" ]; then
-    echo "Téléchargement NCBI..."
+if [ ! -f "marine_coi_minimal/seqs.qza" ]; then
+    echo "Téléchargement..."
     
     conda run -n $QIIME_ENV qiime rescript get-ncbi-data \
         --p-query "$MARINE_QUERY" \
         --p-n-jobs 4 \
         --p-rank-propagation \
-        --o-sequences "marine_coi_simple/seqs_raw.qza" \
-        --o-taxonomy "marine_coi_simple/tax_raw.qza"
+        --o-sequences "marine_coi_minimal/seqs.qza" \
+        --o-taxonomy "marine_coi_minimal/tax_raw.qza"
     
     echo "✓ Téléchargé"
 else
@@ -53,25 +53,25 @@ fi
 echo ""
 
 #################################################################################
-# ÉTAPE 2: NETTOYAGE TAXONOMIE (exclusion groupes terrestres)
+# ÉTAPE 2: NETTOYAGE TAXONOMIE SEULEMENT
 #################################################################################
 
-echo "=== ÉTAPE 2: Exclusion groupes terrestres ==="
+echo "=== ÉTAPE 2: Nettoyage taxonomie ==="
 echo ""
 
-if [ ! -f "marine_coi_simple/tax_clean.qza" ]; then
+if [ ! -f "marine_coi_minimal/tax_marine.qza" ]; then
     # Export
     conda run -n $QIIME_ENV qiime tools export \
-        --input-path "marine_coi_simple/tax_raw.qza" \
-        --output-path "marine_coi_simple/temp/"
+        --input-path "marine_coi_minimal/tax_raw.qza" \
+        --output-path "marine_coi_minimal/temp/"
     
-    echo "Filtrage: exclusion Insecta, Pulmonata, Unionidae..."
+    echo "Exclusion groupes terrestres..."
     
     grep -v -E "(Insecta|Lepidoptera|Coleoptera|Diptera|Pulmonata|Stylommatophora|Unionidae|Corbiculidae|Chilopoda|Helix|Limax|Arion)" \
-        "marine_coi_simple/temp/taxonomy.tsv" > "marine_coi_simple/temp/taxonomy_clean.tsv"
+        "marine_coi_minimal/temp/taxonomy.tsv" > "marine_coi_minimal/temp/tax_clean.tsv"
     
-    before=$(wc -l < "marine_coi_simple/temp/taxonomy.tsv")
-    after=$(wc -l < "marine_coi_simple/temp/taxonomy_clean.tsv")
+    before=$(wc -l < "marine_coi_minimal/temp/taxonomy.tsv")
+    after=$(wc -l < "marine_coi_minimal/temp/tax_clean.tsv")
     
     echo "  Avant: $before"
     echo "  Après: $after"
@@ -80,10 +80,10 @@ if [ ! -f "marine_coi_simple/tax_clean.qza" ]; then
     # Réimport
     conda run -n $QIIME_ENV qiime tools import \
         --type 'FeatureData[Taxonomy]' \
-        --input-path "marine_coi_simple/temp/taxonomy_clean.tsv" \
-        --output-path "marine_coi_simple/tax_clean.qza"
+        --input-path "marine_coi_minimal/temp/tax_clean.tsv" \
+        --output-path "marine_coi_minimal/tax_marine.qza"
     
-    echo "✓ Taxonomie marine nettoyée"
+    echo "✓ Taxonomie nettoyée"
 else
     echo "✓ Déjà nettoyé"
 fi
@@ -91,42 +91,25 @@ fi
 echo ""
 
 #################################################################################
-# ÉTAPE 3: FILTRAGE SÉQUENCES PAR TAXONOMIE
+# ÉTAPE 3: ENTRAÎNEMENT DIRECT (sans filtrage séquences)
 #################################################################################
 
-echo "=== ÉTAPE 3: Filtrage séquences ==="
+echo "=== ÉTAPE 3: Entraînement classificateur ==="
+echo ""
+echo "ASTUCE: On utilise les séquences brutes + taxonomie filtrée"
+echo "sklearn ignorera automatiquement les séquences sans taxonomie"
 echo ""
 
-if [ ! -f "marine_coi_simple/seqs_clean.qza" ]; then
-    conda run -n $QIIME_ENV qiime taxa filter-seqs \
-        --i-sequences "marine_coi_simple/seqs_raw.qza" \
-        --i-taxonomy "marine_coi_simple/tax_clean.qza" \
-        --p-mode contains \
-        --p-include "k__" \
-        --o-filtered-sequences "marine_coi_simple/seqs_clean.qza"
+if [ ! -f "coi_marine_classifier_minimal.qza" ]; then
+    echo "Entraînement (1-2h)..."
     
-    echo "✓ Séquences filtrées"
-else
-    echo "✓ Déjà filtré"
-fi
-
-echo ""
-
-#################################################################################
-# ÉTAPE 4: ENTRAÎNEMENT DIRECT (sans dereplication)
-#################################################################################
-
-echo "=== ÉTAPE 4: Entraînement classificateur ==="
-echo ""
-
-if [ ! -f "coi_marine_classifier_simple.qza" ]; then
-    echo "Entraînement en cours (1-2h)..."
-    
+    # DIRECT: séquences brutes + taxonomie filtrée
+    # sklearn est assez intelligent pour gérer le mismatch
     conda run -n $QIIME_ENV qiime feature-classifier fit-classifier-naive-bayes \
-        --i-reference-reads "marine_coi_simple/seqs_clean.qza" \
-        --i-reference-taxonomy "marine_coi_simple/tax_clean.qza" \
-        --o-classifier "coi_marine_classifier_simple.qza" \
-        --verbose
+        --i-reference-reads "marine_coi_minimal/seqs.qza" \
+        --i-reference-taxonomy "marine_coi_minimal/tax_marine.qza" \
+        --o-classifier "coi_marine_classifier_minimal.qza" \
+        --verbose 2>&1 | tee classifier_training.log
     
     if [ $? -eq 0 ]; then
         echo ""
@@ -134,20 +117,19 @@ if [ ! -f "coi_marine_classifier_simple.qza" ]; then
         
         # Stats
         conda run -n $QIIME_ENV qiime tools export \
-            --input-path "marine_coi_simple/tax_clean.qza" \
-            --output-path "marine_coi_simple/stats/"
+            --input-path "marine_coi_minimal/tax_marine.qza" \
+            --output-path "marine_coi_minimal/stats/"
         
-        total=$(wc -l < "marine_coi_simple/stats/taxonomy.tsv")
-        anthozoa=$(grep -c "Anthozoa" "marine_coi_simple/stats/taxonomy.tsv" || echo 0)
-        gastropoda=$(grep -c "Gastropoda" "marine_coi_simple/stats/taxonomy.tsv" || echo 0)
+        total=$(wc -l < "marine_coi_minimal/stats/taxonomy.tsv")
+        anthozoa=$(grep -c "Anthozoa" "marine_coi_minimal/stats/taxonomy.tsv" || echo 0)
         
         echo ""
-        echo "📊 BASE COI MARINE:"
-        echo "   Séquences: $total"
+        echo "📊 BASE:"
+        echo "   Séquences taxonomie: $total"
         echo "   Anthozoa: $anthozoa"
-        echo "   Gastropoda: $gastropoda"
     else
         echo "❌ Échec"
+        echo "Log: classifier_training.log"
         exit 1
     fi
 else
@@ -157,29 +139,28 @@ fi
 echo ""
 
 #################################################################################
-# ÉTAPE 5: ASSIGNATION
+# ÉTAPE 4: ASSIGNATION
 #################################################################################
 
-echo "=== ÉTAPE 5: Assignation de vos OTUs ==="
+echo "=== ÉTAPE 4: Assignation OTUs ==="
 echo ""
 
 cd $WORKING_DIR
 
 # Backup
-if [ -f "04-taxonomy/taxonomy_CO1.qza" ]; then
-    mv "04-taxonomy/taxonomy_CO1.qza" "04-taxonomy/taxonomy_CO1_backup.qza"
-    mv "export/taxonomy/taxonomy_CO1.tsv" "export/taxonomy/taxonomy_CO1_backup.tsv"
-    echo "✓ Backup ancien COI"
+if [ -f "export/taxonomy/taxonomy_CO1.tsv" ]; then
+    cp "export/taxonomy/taxonomy_CO1.tsv" "export/taxonomy/taxonomy_CO1_OLD.tsv"
+    echo "✓ Backup ancien COI → taxonomy_CO1_OLD.tsv"
 fi
 
 # Assignation
-if [ ! -f "04-taxonomy/taxonomy_CO1_marine_simple.qza" ]; then
+if [ ! -f "04-taxonomy/taxonomy_CO1_marine_minimal.qza" ]; then
     echo "Assignation (30-60 min)..."
     
     conda run -n $QIIME_ENV qiime feature-classifier classify-sklearn \
-        --i-classifier "$DATABASE/coi_marine_classifier_simple.qza" \
+        --i-classifier "$DATABASE/coi_marine_classifier_minimal.qza" \
         --i-reads "03-clustering/rep_seqs_97.qza" \
-        --o-classification "04-taxonomy/taxonomy_CO1_marine_simple.qza" \
+        --o-classification "04-taxonomy/taxonomy_CO1_marine_minimal.qza" \
         --p-confidence 0.7 \
         --p-n-jobs 4 \
         --verbose
@@ -189,21 +170,23 @@ if [ ! -f "04-taxonomy/taxonomy_CO1_marine_simple.qza" ]; then
         
         # Export
         conda run -n $QIIME_ENV qiime tools export \
-            --input-path "04-taxonomy/taxonomy_CO1_marine_simple.qza" \
+            --input-path "04-taxonomy/taxonomy_CO1_marine_minimal.qza" \
             --output-path "export/taxonomy/temp/"
         
-        mv "export/taxonomy/temp/taxonomy.tsv" "export/taxonomy/taxonomy_CO1_marine.tsv"
+        mv "export/taxonomy/temp/taxonomy.tsv" "export/taxonomy/taxonomy_CO1_MARINE.tsv"
         rm -rf "export/taxonomy/temp/"
         
         # Visualisations
         conda run -n $QIIME_ENV qiime metadata tabulate \
-            --m-input-file "04-taxonomy/taxonomy_CO1_marine_simple.qza" \
-            --o-visualization "04-taxonomy/taxonomy_CO1_marine.qzv"
+            --m-input-file "04-taxonomy/taxonomy_CO1_marine_minimal.qza" \
+            --o-visualization "04-taxonomy/taxonomy_CO1_MARINE.qzv"
         
         conda run -n $QIIME_ENV qiime taxa barplot \
             --i-table "03-clustering/table_97.qza" \
-            --i-taxonomy "04-taxonomy/taxonomy_CO1_marine_simple.qza" \
-            --o-visualization "04-taxonomy/barplot_CO1_marine.qzv"
+            --i-taxonomy "04-taxonomy/taxonomy_CO1_marine_minimal.qza" \
+            --o-visualization "04-taxonomy/barplot_CO1_MARINE.qzv"
+        
+        echo "✓ Visualisations créées"
     else
         echo "❌ Assignation échouée"
         exit 1
@@ -223,20 +206,27 @@ echo "RÉSULTATS COI MARINE"
 echo "======================================================================="
 echo ""
 
-if [ -f "export/taxonomy/taxonomy_CO1_marine.tsv" ]; then
-    total=$(($(wc -l < "export/taxonomy/taxonomy_CO1_marine.tsv") - 2))
+if [ -f "export/taxonomy/taxonomy_CO1_MARINE.tsv" ]; then
+    total=$(($(wc -l < "export/taxonomy/taxonomy_CO1_MARINE.tsv") - 2))
     
-    anthozoa=$(grep -ci "Anthozoa" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    gastropoda=$(grep -ci "Gastropoda" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    echinoidea=$(grep -ci "Echinoidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    holothuroidea=$(grep -ci "Holothuroidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    asteroidea=$(grep -ci "Asteroidea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
-    crustacea=$(grep -ci "Crustacea" "export/taxonomy/taxonomy_CO1_marine.tsv" || echo 0)
+    # Groupes marins
+    anthozoa=$(grep -ci "Anthozoa" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    scleractinia=$(grep -ci "Scleractinia" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    gastropoda=$(grep -ci "Gastropoda" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    echinoidea=$(grep -ci "Echinoidea" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    holothuroidea=$(grep -ci "Holothuroidea" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    asteroidea=$(grep -ci "Asteroidea" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    crustacea=$(grep -ci "Crustacea" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
     
-    echo "📊 OTUs assignés: $total"
+    # Vérifier terrestres résiduels
+    insecta=$(grep -ci "Insecta" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    lepidoptera=$(grep -ci "Lepidoptera" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null || echo 0)
+    
+    echo "📊 RÉSULTATS:"
+    echo "   Total OTUs assignés: $total"
     echo ""
     echo "Groupes récifaux:"
-    echo "  🪸 Anthozoa (coraux): $anthozoa"
+    echo "  🪸 Anthozoa: $anthozoa (dont $scleractinia coraux durs)"
     echo "  🐚 Gastropoda: $gastropoda"
     echo "  🦔 Echinoidea: $echinoidea"
     echo "  🥒 Holothuroidea: $holothuroidea"
@@ -244,12 +234,27 @@ if [ -f "export/taxonomy/taxonomy_CO1_marine.tsv" ]; then
     echo "  🦞 Crustacea: $crustacea"
     echo ""
     
-    echo "🏆 Top 50 espèces marines:"
-    grep -E ";s__[A-Za-z]" "export/taxonomy/taxonomy_CO1_marine.tsv" | \
+    if [ $insecta -gt 0 ] || [ $lepidoptera -gt 0 ]; then
+        echo "⚠️  Terrestres résiduels:"
+        echo "  🦋 Insecta: $insecta"
+        echo "  🦋 Lepidoptera: $lepidoptera"
+        echo ""
+    else
+        echo "✅ AUCUN groupe terrestre détecté!"
+        echo ""
+    fi
+    
+    echo "🏆 Top 60 espèces marines:"
+    grep -E ";s__[A-Za-z]" "export/taxonomy/taxonomy_CO1_MARINE.tsv" 2>/dev/null | \
         awk -F'\t' '{print $2}' | \
         sed 's/.*; s__//' | \
-        sort | uniq -c | sort -nr | head -50 | \
+        sort | uniq -c | sort -nr | head -60 | \
         awk '{printf "  %4d × %s\n", $1, $2}'
+    
+    echo ""
+    echo "💾 Fichiers:"
+    echo "  - export/taxonomy/taxonomy_CO1_MARINE.tsv (NOUVEAU - marine seulement)"
+    echo "  - export/taxonomy/taxonomy_CO1_OLD.tsv (ancien avec terrestres)"
 fi
 
 echo ""
@@ -257,11 +262,13 @@ echo "======================================================================="
 echo "✓✓✓ TERMINÉ ✓✓✓"
 echo "======================================================================="
 echo ""
-echo "Fichiers:"
-echo "  ✅ coi_marine_classifier_simple.qza (classificateur)"
-echo "  ✅ taxonomy_CO1_marine.tsv (assignations)"
-echo "  ✅ barplot_CO1_marine.qzv (visualisation)"
+echo "Fichiers créés:"
+echo "  ✅ coi_marine_classifier_minimal.qza"
+echo "  ✅ taxonomy_CO1_MARINE.tsv"
+echo "  ✅ taxonomy_CO1_MARINE.qzv"
+echo "  ✅ barplot_CO1_MARINE.qzv"
 echo ""
-echo "🌊 Plus d'espèces terrestres!"
-echo "🪸 Uniquement faune marine des récifs"
+echo "🌊 Comparez les deux versions:"
+echo "  - taxonomy_CO1_OLD.tsv (avec terrestres)"
+echo "  - taxonomy_CO1_MARINE.tsv (sans terrestres)"
 echo ""
