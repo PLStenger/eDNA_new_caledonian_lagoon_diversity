@@ -8,7 +8,10 @@
 #SBATCH --error="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_kraken.err"
 #SBATCH --output="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_kraken.out"
 
-# PIPELINE COMPLET - Téléchargement SRA + Kraken2 (2 bases) + Krona
+#!/usr/bin/env bash
+
+# PIPELINE KRAKEN2 CORRIGÉ - Utilise données existantes ou télécharge avec fastq-dump
+# Nouvelle-Calédonie eDNA
 
 #################################################################################
 # CONFIGURATION
@@ -32,12 +35,8 @@ mkdir -p $KRONA_DIR/{core,nt,comparison}
 cd $PROJECT_DIR
 
 echo "======================================================================="
-echo "PIPELINE COMPLET - Kraken2 (2 bases) + Krona"
-echo "Nouvelle-Calédonie - Biodiversité marine récifale"
+echo "PIPELINE KRAKEN2 + KRONA - Nouvelle-Calédonie"
 echo "======================================================================="
-echo ""
-echo "Projet: $PROJECT_DIR"
-echo "Sites: Poe, Kouaré, Grand Lagon Nord, Pouébo, Entrecasteaux"
 echo ""
 
 #################################################################################
@@ -68,131 +67,130 @@ declare -A SAMPLES=(
 )
 
 #################################################################################
-# ÉTAPE 1: TÉLÉCHARGEMENT SRA
+# ÉTAPE 1: PRÉPARATION DONNÉES
 #################################################################################
 
 echo "======================================================================="
-echo "ÉTAPE 1: Téléchargement données SRA"
+echo "ÉTAPE 1: Vérification/Téléchargement données"
 echo "======================================================================="
 echo ""
 
-# Vérifier sra-tools
-if ! command -v fasterq-dump &> /dev/null; then
-    echo "Installation de sra-tools..."
-    conda install -y -c bioconda sra-tools
-fi
-
-# Configurer SRA toolkit
-vdb-config --prefetch-to-cwd
-
+# Vérifier si données déjà présentes
 cd $RAW_DATA
 
-download_srr() {
-    local sample=$1
-    local srr=$2
+existing_count=$(ls -1 SRR*.fastq 2>/dev/null | wc -l)
+
+if [ $existing_count -eq 20 ]; then
+    echo "✅ Les 20 fichiers FASTQ sont déjà présents"
+    echo "   Skip téléchargement SRA"
+elif [ $existing_count -gt 0 ]; then
+    echo "⚠️  $existing_count fichiers présents (attendu: 20)"
+    echo "   Téléchargement des fichiers manquants..."
     
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Téléchargement: $sample ($srr)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
-    if [ -f "${srr}.fastq" ] || [ -f "${srr}.fastq.gz" ]; then
-        echo "  ✓ Déjà téléchargé"
-        return 0
+    # Installer sra-tools si besoin
+    if ! command -v fastq-dump &> /dev/null; then
+        echo "Installation sra-tools..."
+        conda install -y -c bioconda sra-tools
     fi
     
-    # Télécharger avec fasterq-dump
-    fasterq-dump $srr \
-        --split-spot \
-        --skip-technical \
-        --threads 4 \
-        --progress \
-        --temp .
-    
-    if [ $? -eq 0 ]; then
-        echo "  ✓ Téléchargement réussi"
+    # Télécharger manquants
+    for sample in "${!SAMPLES[@]}"; do
+        srr="${SAMPLES[$sample]}"
         
-        # Vérifier qualité
-        total_reads=$(grep -c "^@" ${srr}.fastq || echo 0)
-        echo "  Total reads: $total_reads"
-    else
-        echo "  ❌ Échec téléchargement"
-        return 1
+        if [ ! -f "${srr}.fastq" ]; then
+            echo "  Téléchargement: $sample ($srr)"
+            
+            prefetch $srr -O . 2>/dev/null
+            fastq-dump --split-spot --skip-technical ${srr}/${srr}.sra -O . 2>/dev/null || \
+            fastq-dump --split-spot --skip-technical $srr -O . 2>/dev/null
+            
+            rm -rf $srr  # Nettoyer dossier prefetch
+        fi
+    done
+else
+    echo "Aucun fichier présent. Téléchargement depuis SRA..."
+    
+    # Installer sra-tools
+    if ! command -v fastq-dump &> /dev/null; then
+        echo "Installation sra-tools..."
+        conda install -y -c bioconda sra-tools
     fi
     
-    echo ""
-}
+    # Télécharger tous
+    for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
+        srr="${SAMPLES[$sample]}"
+        
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "Téléchargement: $sample ($srr)"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        prefetch $srr -O . 2>&1 | grep -E "(Downloading|written)"
+        fastq-dump --split-spot --skip-technical ${srr}/${srr}.sra -O . 2>&1 | grep -E "(Read|Written)"
+        
+        rm -rf $srr  # Nettoyer
+        
+        if [ -f "${srr}.fastq" ]; then
+            reads=$(grep -c "^@" ${srr}.fastq)
+            echo "  ✅ $reads reads"
+        fi
+        
+        echo ""
+    done
+fi
 
-echo "Téléchargement des 20 échantillons..."
-echo ""
-
-for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    download_srr "$sample" "${SAMPLES[$sample]}"
-done
-
-echo "✓ Téléchargement terminé"
-echo ""
-
-# Stats globales
-fastq_count=$(ls -1 *.fastq 2>/dev/null | wc -l)
-echo "📊 Fichiers FASTQ: $fastq_count / 20"
+# Vérification finale
+echo "📊 Fichiers disponibles:"
+ls -1 SRR*.fastq 2>/dev/null | wc -l
 echo ""
 
 cd $PROJECT_DIR
 
 #################################################################################
-# ÉTAPE 2: INSTALLATION OUTILS
+# ÉTAPE 2: VÉRIFICATION OUTILS
 #################################################################################
 
 echo "======================================================================="
-echo "ÉTAPE 2: Vérification des outils"
+echo "ÉTAPE 2: Vérification outils"
 echo "======================================================================="
 echo ""
 
 # Kraken2
 if ! command -v kraken2 &> /dev/null; then
-    echo "Installation de Kraken2..."
+    echo "Installation Kraken2..."
     conda install -y -c bioconda kraken2
 fi
 
-# KronaTools
+# Krona
 if ! command -v ktImportTaxonomy &> /dev/null; then
-    echo "Installation de KronaTools..."
+    echo "Installation Krona..."
     conda install -y -c bioconda krona
-    ktUpdateTaxonomy.sh
+    ktUpdateTaxonomy.sh 2>/dev/null
 fi
 
-echo "✓ Kraken2: $(kraken2 --version 2>&1 | head -1)"
-echo "✓ Krona installé"
+echo "✅ Kraken2: $(kraken2 --version 2>&1 | head -1)"
+echo "✅ Krona installé"
 echo ""
 
-# Vérifier bases de données
-echo "Vérification bases Kraken2:"
-if [ -d "$KRAKEN2_DB_CORE" ]; then
-    echo "  ✅ Base CORE: $KRAKEN2_DB_CORE"
-else
-    echo "  ❌ Base CORE manquante: $KRAKEN2_DB_CORE"
+# Bases
+if [ ! -d "$KRAKEN2_DB_CORE" ]; then
+    echo "❌ Base CORE manquante: $KRAKEN2_DB_CORE"
     exit 1
 fi
 
-if [ -d "$KRAKEN2_DB_NT" ]; then
-    echo "  ✅ Base NT: $KRAKEN2_DB_NT"
-else
-    echo "  ❌ Base NT manquante: $KRAKEN2_DB_NT"
+if [ ! -d "$KRAKEN2_DB_NT" ]; then
+    echo "❌ Base NT manquante: $KRAKEN2_DB_NT"
     exit 1
 fi
 
+echo "✅ Base CORE: $KRAKEN2_DB_CORE"
+echo "✅ Base NT: $KRAKEN2_DB_NT"
 echo ""
 
 #################################################################################
-# ÉTAPE 3: CLASSIFICATION KRAKEN2 - BASE CORE
+# FONCTION CLASSIFICATION
 #################################################################################
 
-echo "======================================================================="
-echo "ÉTAPE 3: Classification Kraken2 - BASE CORE"
-echo "======================================================================="
-echo ""
-
-classify_kraken() {
+classify_sample() {
     local sample=$1
     local srr=$2
     local db=$3
@@ -200,20 +198,20 @@ classify_kraken() {
     local db_name=$5
     
     local fastq="${RAW_DATA}/${srr}.fastq"
-    local report="${output_dir}/reports/${sample}_${db_name}_report.txt"
-    local output="${output_dir}/outputs/${sample}_${db_name}_output.txt"
+    local report="${output_dir}/reports/${sample}_report.txt"
+    local output="${output_dir}/outputs/${sample}_output.txt"
     
     if [ ! -f "$fastq" ]; then
-        echo "  ⚠️  Fichier manquant: $fastq"
+        echo "  ⚠️  Manquant: $fastq"
         return 1
     fi
     
     if [ -f "$report" ]; then
-        echo "  ✓ $sample ($db_name): déjà classifié"
+        echo "  ✓ $sample ($db_name): déjà fait"
         return 0
     fi
     
-    echo "  Classification: $sample avec $db_name..."
+    echo "  $sample ($db_name)..."
     
     kraken2 \
         --db "$db" \
@@ -221,82 +219,60 @@ classify_kraken() {
         --report "$report" \
         --output "$output" \
         --use-names \
-        "$fastq" 2>&1 | grep -E "(processed|classified)"
+        "$fastq" 2>&1 | grep -E "(processed|classified)" | head -2
     
-    if [ $? -eq 0 ] && [ -f "$report" ]; then
-        # Stats
+    if [ -f "$report" ]; then
         total=$(wc -l < "$output")
         classified=$(grep -c "^C" "$output" || echo 0)
         percent=$(awk "BEGIN {printf \"%.1f\", ($classified/$total)*100}")
-        
-        echo "    Total: $total | Classifiés: $classified ($percent%)"
-    else
-        echo "    ❌ Échec"
-        return 1
+        echo "    → $classified/$total ($percent%)"
     fi
 }
 
-echo "Classification avec BASE CORE (k2_core_nt)..."
+#################################################################################
+# ÉTAPE 3: CLASSIFICATION BASE CORE
+#################################################################################
+
+echo "======================================================================="
+echo "ÉTAPE 3: Classification BASE CORE"
+echo "======================================================================="
 echo ""
 
 for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    classify_kraken "$sample" "${SAMPLES[$sample]}" "$KRAKEN2_DB_CORE" "$KRAKEN_CORE_DIR" "core"
+    classify_sample "$sample" "${SAMPLES[$sample]}" "$KRAKEN2_DB_CORE" "$KRAKEN_CORE_DIR" "CORE"
 done
 
 echo ""
-echo "✓ Classification BASE CORE terminée"
+echo "✅ Classification BASE CORE terminée"
 echo ""
 
 #################################################################################
-# ÉTAPE 4: CLASSIFICATION KRAKEN2 - BASE NT
+# ÉTAPE 4: CLASSIFICATION BASE NT
 #################################################################################
 
 echo "======================================================================="
-echo "ÉTAPE 4: Classification Kraken2 - BASE NT"
+echo "ÉTAPE 4: Classification BASE NT"
 echo "======================================================================="
-echo ""
-
-echo "Classification avec BASE NT (k2_nt)..."
 echo ""
 
 for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    classify_kraken "$sample" "${SAMPLES[$sample]}" "$KRAKEN2_DB_NT" "$KRAKEN_NT_DIR" "nt"
+    classify_sample "$sample" "${SAMPLES[$sample]}" "$KRAKEN2_DB_NT" "$KRAKEN_NT_DIR" "NT"
 done
 
 echo ""
-echo "✓ Classification BASE NT terminée"
+echo "✅ Classification BASE NT terminée"
 echo ""
 
 #################################################################################
-# ÉTAPE 5: VISUALISATIONS KRONA - BASE CORE
+# ÉTAPE 5-6: KRONA
 #################################################################################
 
 echo "======================================================================="
-echo "ÉTAPE 5: Visualisations Krona - BASE CORE"
+echo "ÉTAPES 5-6: Visualisations Krona"
 echo "======================================================================="
 echo ""
 
-# Individuels
-echo "--- Graphiques individuels (BASE CORE) ---"
-for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    report="${KRAKEN_CORE_DIR}/reports/${sample}_core_report.txt"
-    
-    if [ ! -f "$report" ]; then
-        continue
-    fi
-    
-    ktImportTaxonomy \
-        -t 5 -m 3 \
-        -o "${KRONA_DIR}/core/${sample}_core_krona.html" \
-        "$report" 2>/dev/null
-    
-    echo "  ✓ ${sample}_core_krona.html"
-done
-
-# Par site
-echo ""
-echo "--- Par site (BASE CORE) ---"
-
+# Sites
 declare -A SITES=(
     ["Poe"]="Poe1 Poe2 Poe3 Poe4"
     ["Kouare"]="Kouare1 Kouare2 Kouare3 Kouare4"
@@ -305,142 +281,96 @@ declare -A SITES=(
     ["Entrecasteaux"]="Entrecasteaux1 Entrecasteaux2 Entrecasteaux3 Entrecasteaux4"
 )
 
-for site in "${!SITES[@]}"; do
-    reports=""
-    for s in ${SITES[$site]}; do
-        r="${KRAKEN_CORE_DIR}/reports/${s}_core_report.txt"
-        [ -f "$r" ] && reports="$reports $r"
-    done
-    
-    if [ -n "$reports" ]; then
-        ktImportTaxonomy \
-            -t 5 -m 3 \
-            -o "${KRONA_DIR}/core/${site}_core_krona.html" \
-            $reports 2>/dev/null
-        
-        echo "  ✓ ${site}_core_krona.html"
-    fi
-done
+# CORE
+echo "--- BASE CORE ---"
 
-# Global
-echo ""
-echo "--- Global (BASE CORE) ---"
-all_core=$(find ${KRAKEN_CORE_DIR}/reports -name "*_core_report.txt" -not -name "Control*")
-ktImportTaxonomy \
-    -t 5 -m 3 \
-    -o "${KRONA_DIR}/core/ALL_SITES_core_krona.html" \
-    $all_core 2>/dev/null
-
-echo "  ✓ ALL_SITES_core_krona.html"
-echo ""
-
-#################################################################################
-# ÉTAPE 6: VISUALISATIONS KRONA - BASE NT
-#################################################################################
-
-echo "======================================================================="
-echo "ÉTAPE 6: Visualisations Krona - BASE NT"
-echo "======================================================================="
-echo ""
-
-# Individuels
-echo "--- Graphiques individuels (BASE NT) ---"
 for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    report="${KRAKEN_NT_DIR}/reports/${sample}_nt_report.txt"
-    
-    if [ ! -f "$report" ]; then
-        continue
-    fi
-    
-    ktImportTaxonomy \
-        -t 5 -m 3 \
-        -o "${KRONA_DIR}/nt/${sample}_nt_krona.html" \
-        "$report" 2>/dev/null
-    
-    echo "  ✓ ${sample}_nt_krona.html"
+    r="${KRAKEN_CORE_DIR}/reports/${sample}_report.txt"
+    [ -f "$r" ] && ktImportTaxonomy -t 5 -m 3 -o "${KRONA_DIR}/core/${sample}_core.html" "$r" 2>/dev/null
 done
-
-# Par site
-echo ""
-echo "--- Par site (BASE NT) ---"
 
 for site in "${!SITES[@]}"; do
     reports=""
     for s in ${SITES[$site]}; do
-        r="${KRAKEN_NT_DIR}/reports/${s}_nt_report.txt"
+        r="${KRAKEN_CORE_DIR}/reports/${s}_report.txt"
         [ -f "$r" ] && reports="$reports $r"
     done
-    
-    if [ -n "$reports" ]; then
-        ktImportTaxonomy \
-            -t 5 -m 3 \
-            -o "${KRONA_DIR}/nt/${site}_nt_krona.html" \
-            $reports 2>/dev/null
-        
-        echo "  ✓ ${site}_nt_krona.html"
-    fi
+    [ -n "$reports" ] && ktImportTaxonomy -t 5 -m 3 -o "${KRONA_DIR}/core/${site}_core.html" $reports 2>/dev/null
 done
 
-# Global
-echo ""
-echo "--- Global (BASE NT) ---"
-all_nt=$(find ${KRAKEN_NT_DIR}/reports -name "*_nt_report.txt" -not -name "Control*")
-ktImportTaxonomy \
-    -t 5 -m 3 \
-    -o "${KRONA_DIR}/nt/ALL_SITES_nt_krona.html" \
-    $all_nt 2>/dev/null
+all_core=$(find ${KRAKEN_CORE_DIR}/reports -name "*_report.txt" -not -name "Control*" 2>/dev/null)
+[ -n "$all_core" ] && ktImportTaxonomy -t 5 -m 3 -o "${KRONA_DIR}/core/ALL_SITES_core.html" $all_core 2>/dev/null
 
-echo "  ✓ ALL_SITES_nt_krona.html"
-echo ""
+echo "  ✅ Krona CORE: $(ls -1 ${KRONA_DIR}/core/*.html 2>/dev/null | wc -l) fichiers"
 
-#################################################################################
-# ÉTAPE 7: COMPARAISON DES DEUX BASES
-#################################################################################
-
-echo "======================================================================="
-echo "ÉTAPE 7: Comparaison BASE CORE vs BASE NT"
-echo "======================================================================="
-echo ""
-
-comparison_file="${KRONA_DIR}/comparison/core_vs_nt_comparison.tsv"
-
-echo -e "Sample\tCore_total\tCore_classified\tCore_percent\tNT_total\tNT_classified\tNT_percent" > "$comparison_file"
+# NT
+echo "--- BASE NT ---"
 
 for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    core_output="${KRAKEN_CORE_DIR}/outputs/${sample}_core_output.txt"
-    nt_output="${KRAKEN_NT_DIR}/outputs/${sample}_nt_output.txt"
-    
-    if [ -f "$core_output" ] && [ -f "$nt_output" ]; then
-        # Stats CORE
-        core_total=$(wc -l < "$core_output")
-        core_class=$(grep -c "^C" "$core_output" || echo 0)
-        core_pct=$(awk "BEGIN {printf \"%.1f\", ($core_class/$core_total)*100}")
-        
-        # Stats NT
-        nt_total=$(wc -l < "$nt_output")
-        nt_class=$(grep -c "^C" "$nt_output" || echo 0)
-        nt_pct=$(awk "BEGIN {printf \"%.1f\", ($nt_class/$nt_total)*100}")
-        
-        echo -e "${sample}\t${core_total}\t${core_class}\t${core_pct}%\t${nt_total}\t${nt_class}\t${nt_pct}%" >> "$comparison_file"
-    fi
+    r="${KRAKEN_NT_DIR}/reports/${sample}_report.txt"
+    [ -f "$r" ] && ktImportTaxonomy -t 5 -m 3 -o "${KRONA_DIR}/nt/${sample}_nt.html" "$r" 2>/dev/null
 done
 
-echo "📊 COMPARAISON DES BASES:"
-echo ""
-cat "$comparison_file" | column -t -s $'\t'
+for site in "${!SITES[@]}"; do
+    reports=""
+    for s in ${SITES[$site]}; do
+        r="${KRAKEN_NT_DIR}/reports/${s}_report.txt"
+        [ -f "$r" ] && reports="$reports $r"
+    done
+    [ -n "$reports" ] && ktImportTaxonomy -t 5 -m 3 -o "${KRONA_DIR}/nt/${site}_nt.html" $reports 2>/dev/null
+done
+
+all_nt=$(find ${KRAKEN_NT_DIR}/reports -name "*_report.txt" -not -name "Control*" 2>/dev/null)
+[ -n "$all_nt" ] && ktImportTaxonomy -t 5 -m 3 -o "${KRONA_DIR}/nt/ALL_SITES_nt.html" $all_nt 2>/dev/null
+
+echo "  ✅ Krona NT: $(ls -1 ${KRONA_DIR}/nt/*.html 2>/dev/null | wc -l) fichiers"
 echo ""
 
 #################################################################################
-# ÉTAPE 8: TOP TAXA PAR BASE
+# ÉTAPE 7: COMPARAISON
 #################################################################################
 
 echo "======================================================================="
-echo "ÉTAPE 8: Top taxa détectés"
+echo "ÉTAPE 7: Comparaison CORE vs NT"
+echo "======================================================================="
+echo ""
+
+comp_file="${KRONA_DIR}/comparison/comparison.tsv"
+
+echo -e "Sample\tCore_total\tCore_class\tCore_%\tNT_total\tNT_class\tNT_%" > "$comp_file"
+
+for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
+    core_out="${KRAKEN_CORE_DIR}/outputs/${sample}_output.txt"
+    nt_out="${KRAKEN_NT_DIR}/outputs/${sample}_output.txt"
+    
+    if [ -f "$core_out" ] && [ -f "$nt_out" ]; then
+        core_tot=$(wc -l < "$core_out")
+        core_cl=$(grep -c "^C" "$core_out" || echo 0)
+        core_pct=$(awk "BEGIN {printf \"%.1f\", ($core_cl/$core_tot)*100}")
+        
+        nt_tot=$(wc -l < "$nt_out")
+        nt_cl=$(grep -c "^C" "$nt_out" || echo 0)
+        nt_pct=$(awk "BEGIN {printf \"%.1f\", ($nt_cl/$nt_tot)*100}")
+        
+        echo -e "${sample}\t${core_tot}\t${core_cl}\t${core_pct}\t${nt_tot}\t${nt_cl}\t${nt_pct}" >> "$comp_file"
+    fi
+done
+
+echo "📊 COMPARAISON:"
+cat "$comp_file" | column -t -s $'\t'
+echo ""
+
+#################################################################################
+# ÉTAPE 8: TOP TAXA
+#################################################################################
+
+echo "======================================================================="
+echo "ÉTAPE 8: Top taxa"
 echo "======================================================================="
 echo ""
 
 echo "🏆 TOP 30 ESPÈCES - BASE CORE:"
-cat ${KRAKEN_CORE_DIR}/reports/*_core_report.txt | \
+cat ${KRAKEN_CORE_DIR}/reports/*_report.txt 2>/dev/null | \
     awk '$4=="S" {gsub(/^ +| +$/, "", $6); print $6"\t"$1}' | \
     awk '{sum[$1]+=$2} END {for (sp in sum) print sum[sp]"\t"sp}' | \
     sort -k1 -nr | head -30 | \
@@ -448,114 +378,23 @@ cat ${KRAKEN_CORE_DIR}/reports/*_core_report.txt | \
 
 echo ""
 echo "🏆 TOP 30 ESPÈCES - BASE NT:"
-cat ${KRAKEN_NT_DIR}/reports/*_nt_report.txt | \
+cat ${KRAKEN_NT_DIR}/reports/*_report.txt 2>/dev/null | \
     awk '$4=="S" {gsub(/^ +| +$/, "", $6); print $6"\t"$1}' | \
     awk '{sum[$1]+=$2} END {for (sp in sum) print sum[sp]"\t"sp}' | \
     sort -k1 -nr | head -30 | \
     awk '{printf "%8d × %s\n", $1, $2}'
 
 echo ""
-
-#################################################################################
-# ÉTAPE 9: FOCUS FAUNE MARINE
-#################################################################################
-
 echo "======================================================================="
-echo "ÉTAPE 9: Focus sur la faune marine récifale"
+echo "✅✅✅ TERMINÉ ✅✅✅"
 echo "======================================================================="
 echo ""
-
-marine_core="${KRONA_DIR}/comparison/marine_taxa_core.tsv"
-marine_nt="${KRONA_DIR}/comparison/marine_taxa_nt.tsv"
-
-# CORE
-echo -e "Sample\tCnidaria\tMollusca\tEchinodermata\tCrustacea\tActinopteri" > "$marine_core"
-
-for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    report="${KRAKEN_CORE_DIR}/reports/${sample}_core_report.txt"
-    
-    if [ ! -f "$report" ]; then
-        continue
-    fi
-    
-    cnidaria=$(grep -i "Cnidaria" "$report" | awk '{sum+=$1} END {print sum+0}')
-    mollusca=$(grep -i "Mollusca" "$report" | awk '{sum+=$1} END {print sum+0}')
-    echino=$(grep -i "Echinodermata" "$report" | awk '{sum+=$1} END {print sum+0}')
-    crusta=$(grep -i "Crustacea" "$report" | awk '{sum+=$1} END {print sum+0}')
-    actino=$(grep -i "Actinopteri" "$report" | awk '{sum+=$1} END {print sum+0}')
-    
-    echo -e "${sample}\t${cnidaria}\t${mollusca}\t${echino}\t${crusta}\t${actino}" >> "$marine_core"
-done
-
-# NT
-echo -e "Sample\tCnidaria\tMollusca\tEchinodermata\tCrustacea\tActinopteri" > "$marine_nt"
-
-for sample in $(echo "${!SAMPLES[@]}" | tr ' ' '\n' | sort); do
-    report="${KRAKEN_NT_DIR}/reports/${sample}_nt_report.txt"
-    
-    if [ ! -f "$report" ]; then
-        continue
-    fi
-    
-    cnidaria=$(grep -i "Cnidaria" "$report" | awk '{sum+=$1} END {print sum+0}')
-    mollusca=$(grep -i "Mollusca" "$report" | awk '{sum+=$1} END {print sum+0}')
-    echino=$(grep -i "Echinodermata" "$report" | awk '{sum+=$1} END {print sum+0}')
-    crusta=$(grep -i "Crustacea" "$report" | awk '{sum+=$1} END {print sum+0}')
-    actino=$(grep -i "Actinopteri" "$report" | awk '{sum+=$1} END {print sum+0}')
-    
-    echo -e "${sample}\t${cnidaria}\t${mollusca}\t${echino}\t${crusta}\t${actino}" >> "$marine_nt"
-done
-
-echo "📊 GROUPES MARINS (BASE CORE):"
-cat "$marine_core" | column -t -s $'\t'
-
+echo "Fichiers créés:"
+echo "  → 04_krona/core/ALL_SITES_core.html"
+echo "  → 04_krona/nt/ALL_SITES_nt.html"
+echo "  → 04_krona/comparison/comparison.tsv"
 echo ""
-echo "📊 GROUPES MARINS (BASE NT):"
-cat "$marine_nt" | column -t -s $'\t'
-
-echo ""
-
-#################################################################################
-# RÉSUMÉ FINAL
-#################################################################################
-
-echo ""
-echo "======================================================================="
-echo "✓✓✓ PIPELINE TERMINÉ ✓✓✓"
-echo "======================================================================="
-echo ""
-echo "STRUCTURE DES FICHIERS:"
-echo ""
-echo "01_raw_data/"
-echo "  ├─ *.fastq (20 échantillons SRA)"
-echo ""
-echo "02_kraken2_core_nt/"
-echo "  ├─ reports/*.txt"
-echo "  └─ outputs/*.txt"
-echo ""
-echo "03_kraken2_nt/"
-echo "  ├─ reports/*.txt"
-echo "  └─ outputs/*.txt"
-echo ""
-echo "04_krona/"
-echo "  ├─ core/*.html (visualisations BASE CORE)"
-echo "  ├─ nt/*.html (visualisations BASE NT)"
-echo "  └─ comparison/*.tsv (comparaisons)"
-echo ""
-echo "VISUALISATIONS INTERACTIVES:"
-echo ""
-echo "  BASE CORE:"
-echo "    → 04_krona/core/ALL_SITES_core_krona.html"
-echo ""
-echo "  BASE NT:"
-echo "    → 04_krona/nt/ALL_SITES_nt_krona.html"
-echo ""
-echo "COMPARAISON:"
-echo "  → 04_krona/comparison/core_vs_nt_comparison.tsv"
-echo ""
-echo "Pour visualiser:"
-echo "  firefox 04_krona/core/ALL_SITES_core_krona.html"
-echo "  firefox 04_krona/nt/ALL_SITES_nt_krona.html"
-echo ""
-echo "Bonne exploration! 🪸🐚🦔🌊"
+echo "Visualiser:"
+echo "  firefox $PROJECT_DIR/04_krona/core/ALL_SITES_core.html"
+echo "  firefox $PROJECT_DIR/04_krona/nt/ALL_SITES_nt.html"
 echo ""
