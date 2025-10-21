@@ -1,7 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/bash
+#SBATCH --job-name=99_kraken
+#SBATCH --ntasks=1
+#SBATCH -p smp
+#SBATCH --mem=1000G
+#SBATCH --mail-user=pierrelouis.stenger@gmail.com
+#SBATCH --mail-type=ALL 
+#SBATCH --error="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_kraken.err"
+#SBATCH --output="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_kraken.out"
 
 # PIPELINE COMPLET - Téléchargement SRA + Kraken2 (2 bases) + Krona
-# Nouvelle-Calédonie eDNA - Biodiversité marine récifale
 
 #################################################################################
 # CONFIGURATION
