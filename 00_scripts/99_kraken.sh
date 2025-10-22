@@ -8,7 +8,7 @@
 #################################################################################
 
 PROJECT_DIR=/home/plstenge/eDNA_new_caledonian_lagoon_diversity
-RAW_DATA=${PROJECT_DIR}/01_raw_data
+RAW_DATA=${PROJECT_DIR}/01_raw_data/raw_sequences_comp
 KRAKEN_CORE_DIR=${PROJECT_DIR}/02_kraken2_core_nt
 KRAKEN_NT_DIR=${PROJECT_DIR}/03_kraken2_nt
 KRONA_DIR=${PROJECT_DIR}/04_krona
