@@ -1,7 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/bash
+#SBATCH --job-name=99_kraken
+#SBATCH --ntasks=1
+#SBATCH -p smp
+#SBATCH --mem=1000G
+#SBATCH --mail-user=pierrelouis.stenger@gmail.com
+#SBATCH --mail-type=ALL 
+#SBATCH --error="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_kraken.err"
+#SBATCH --output="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_kraken.out"
 
 # PIPELINE KRAKEN2 - Utilise fichiers FASTQ existants
-# Assume que les fichiers sont dans /nvme/bio/data_fungi/.../01_raw_data
 
 #################################################################################
 # CONFIGURATION
@@ -14,7 +21,7 @@ KRAKEN_NT_DIR=${PROJECT_DIR}/03_kraken2_nt
 KRONA_DIR=${PROJECT_DIR}/04_krona
 
 # SOURCE des données (ajuster selon votre cas)
-SOURCE_DATA="/nvme/bio/data_fungi/eDNA_new_caledonian_lagoon_diversity/01_raw_data"
+SOURCE_DATA="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/01_raw_data/raw_sequences_comp"
 
 # Bases Kraken2
 KRAKEN2_DB_CORE="/home/plstenge/k2_core_nt_20250609"
