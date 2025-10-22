@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+#SBATCH --job-name=99_SYLPH
+#SBATCH --ntasks=1
+#SBATCH -p smp
+#SBATCH --mem=1000G
+#SBATCH --mail-user=pierrelouis.stenger@gmail.com
+#SBATCH --mail-type=ALL 
+#SBATCH --error="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_SYLPH.err"
+#SBATCH --output="/home/plstenge/eDNA_new_caledonian_lagoon_diversity/00_scripts/99_SYLPH.out"
 
 # CONFIGURATION
 PROJECT_DIR=/home/plstenge/eDNA_new_caledonian_lagoon_diversity
