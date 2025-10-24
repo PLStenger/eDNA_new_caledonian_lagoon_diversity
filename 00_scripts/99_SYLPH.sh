@@ -16,7 +16,7 @@ SKETCH_DIR=${SYLPH_DIR}/sketches
 PROFILE_DIR=${SYLPH_DIR}/profiles
 RESULTS_DIR=${SYLPH_DIR}/results
 
-# Base NCBI NT (existante sur votre cluster)
+# Base NCBI NT
 NCBI_NT_FASTA="/storage/biodatabanks/ncbi/NT/current/fasta/All/all.fasta"
 NT_SKETCH="${SYLPH_DIR}/ncbi_nt.syldb"
 
@@ -27,8 +27,12 @@ echo "PIPELINE SYLPH avec NCBI NT - eDNA marin Nouvelle-Calédonie"
 echo "======================================================================="
 echo ""
 
+# Vérifier version Sylph
+sylph --version
+echo ""
+
 #################################################################################
-# ÉTAPE 1: CRÉATION SKETCH NCBI NT (une seule fois, ~2-4h)
+# ÉTAPE 1: CRÉATION SKETCH NCBI NT
 #################################################################################
 
 if [ ! -f "$NT_SKETCH" ]; then
@@ -40,17 +44,14 @@ if [ ! -f "$NT_SKETCH" ]; then
     echo "   Le sketch sera réutilisable pour tous vos futurs projets !"
     echo ""
     
-    # Créer le sketch de la base NT
+    # Syntaxe correcte pour Sylph sketch (génomes)
     sylph sketch \
-        -g "$NCBI_NT_FASTA" \
-        -o "$NT_SKETCH" \
-        -t 16 \
-        --min-count 2
+        --genomes "$NCBI_NT_FASTA" \
+        --out-name-db "$NT_SKETCH" \
+        -t 16
     
     if [ $? -eq 0 ]; then
         echo "✅ Sketch NCBI NT créé avec succès"
-        
-        # Taille du sketch
         sketch_size=$(du -h "$NT_SKETCH" | cut -f1)
         echo "   Taille: $sketch_size"
     else
@@ -88,9 +89,10 @@ for fastq in $RAW_DATA/*.fastq $RAW_DATA/*.fastq.gz; do
     
     echo "  Sketching: $sample"
     
+    # Syntaxe pour sketcher des reads (single-end)
     sylph sketch \
-        -r "$fastq" \
-        -o "$sketch_out" \
+        --reads "$fastq" \
+        --out-name-profile "$sketch_out" \
         -t 8
     
     if [ $? -eq 0 ]; then
@@ -125,6 +127,7 @@ for sketch in ${SKETCH_DIR}/*.sylsp; do
     
     echo "  Profiling: $sample"
     
+    # Syntaxe pour profiling
     sylph profile \
         "$NT_SKETCH" \
         "$sketch" \
@@ -160,10 +163,10 @@ for profile in ${PROFILE_DIR}/*_profile.tsv; do
     
     sample=$(basename "$profile" _profile.tsv)
     
-    # Stats
+    # Compter total espèces
     total=$(tail -n +2 "$profile" | wc -l)
     
-    # Top espèce (ligne avec plus grande abondance)
+    # Top espèce (plus grande abondance, colonne 3)
     top_line=$(tail -n +2 "$profile" | sort -k3 -nr | head -1)
     
     if [ -n "$top_line" ]; then
@@ -198,7 +201,7 @@ cat ${PROFILE_DIR}/*_profile.tsv | \
 echo ""
 
 # Focus groupes marins
-echo "🌊 GROUPES MARINS DÉTECTÉS:"
+echo "🌊 GROUPES MARINS PRINCIPAUX:"
 echo ""
 
 marine_summary="${RESULTS_DIR}/marine_taxa.tsv"
@@ -210,11 +213,12 @@ for profile in ${PROFILE_DIR}/*_profile.tsv; do
     
     sample=$(basename "$profile" _profile.tsv)
     
-    cnidaria=$(grep -i "Cnidaria\|Anthozoa\|Scleractinia" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
-    mollusca=$(grep -i "Mollusca\|Gastropoda\|Bivalvia" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
-    echino=$(grep -i "Echinodermata" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
-    crusta=$(grep -i "Crustacea" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
-    actino=$(grep -i "Actinopterygii\|Teleostei" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
+    # Recherche par mots-clés taxonomiques
+    cnidaria=$(grep -i "Cnidaria\|Anthozoa\|Scleractinia\|Alcyonacea" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
+    mollusca=$(grep -i "Mollusca\|Gastropoda\|Bivalvia\|Cephalopoda" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
+    echino=$(grep -i "Echinodermata\|Asteroidea\|Echinoidea\|Holothuroidea" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
+    crusta=$(grep -i "Crustacea\|Decapoda\|Copepoda" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
+    actino=$(grep -i "Actinopterygii\|Teleostei\|Perciformes" "$profile" | awk '{sum+=$3} END {printf "%.6f", sum+0}')
     
     echo -e "${sample}\t${cnidaria}\t${mollusca}\t${echino}\t${crusta}\t${actino}" >> "$marine_summary"
 done
@@ -222,14 +226,40 @@ done
 column -t -s $'\t' "$marine_summary"
 
 echo ""
+
+# Export pour visualisation ultérieure
+combined_profiles="${RESULTS_DIR}/all_profiles_combined.tsv"
+
+echo "Création fichier combiné pour analyses R/Python..."
+
+# Première ligne = header
+head -1 "${PROFILE_DIR}/"*_profile.tsv | head -1 > "$combined_profiles"
+
+# Ajouter colonne "Sample" à chaque ligne
+for profile in ${PROFILE_DIR}/*_profile.tsv; do
+    sample=$(basename "$profile" _profile.tsv)
+    tail -n +2 "$profile" | awk -v s="$sample" '{print s"\t"$0}'
+done >> "$combined_profiles"
+
+echo "✅ Fichier combiné: $combined_profiles"
+echo ""
+
+#################################################################################
+# RÉSUMÉ FINAL
+#################################################################################
+
 echo "======================================================================="
 echo "✅✅✅ PIPELINE SYLPH-NT TERMINÉ ✅✅✅"
 echo "======================================================================="
 echo ""
 echo "FICHIERS CRÉÉS:"
 echo "  → Sketch NCBI NT: $NT_SKETCH (réutilisable)"
-echo "  → Profils: ${PROFILE_DIR}/*_profile.tsv"
-echo "  → Résumés: ${RESULTS_DIR}/*.tsv"
+echo "  → Sketches échantillons: ${SKETCH_DIR}/*.sylsp"
+echo "  → Profils individuels: ${PROFILE_DIR}/*_profile.tsv"
+echo "  → Résumés:"
+echo "      • ${RESULTS_DIR}/summary_all_samples.tsv"
+echo "      • ${RESULTS_DIR}/marine_taxa.tsv"
+echo "      • ${RESULTS_DIR}/all_profiles_combined.tsv"
 echo ""
 echo "Base NCBI NT couvre:"
 echo "  ✅ Bactéries, Archées"
@@ -237,5 +267,5 @@ echo "  ✅ Eucaryotes (coraux, poissons, mollusques...)"
 echo "  ✅ Plantes, Fungi, Protistes"
 echo "  ✅ TOUT le règne Metazoa marin"
 echo ""
-echo "Votre eDNA marine est maintenant complètement profilé ! 🧬🌊"
+echo "Analyse terminée ! 🧬🌊🪸"
 echo ""
