@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
 #SBATCH --job-name=kraken2_NC_ASV
-#SBATCH --cpus-per-task=36
-#SBATCH --mem=120G
-#SBATCH --time=24:00:00
+#SBATCH --ntasks=1
+#SBATCH -p smp
+#SBATCH --mem=1000G
+#SBATCH --mail-user=pierrelouis.stenger@gmail.com
+#SBATCH --mail-type=ALL
 #SBATCH --output=kraken2_NC_ASV.%j.out
 #SBATCH --error=kraken2_NC_ASV.%j.err
 
