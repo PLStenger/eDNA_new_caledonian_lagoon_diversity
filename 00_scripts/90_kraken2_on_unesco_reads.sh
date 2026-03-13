@@ -9,8 +9,6 @@
 #SBATCH --output=kraken2_NC_ASV.%j.out
 #SBATCH --error=kraken2_NC_ASV.%j.err
 
-set -euo pipefail
-
 # Paramètres
 KRAKEN2_DB="/home/plstenge/k2_core_nt_20250609"
 THREADS=36
